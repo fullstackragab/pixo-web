@@ -191,7 +191,7 @@ export default function HomePage() {
       <footer className="bg-gray-900 text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-2xl" style={{ fontFamily: 'var(--font-dynapuff)' }}>Bixo</p>
+            <p className="text-2xl" style={{ fontFamily: 'var(--font-lexend-giga)' }}>Bixo</p>
             <p className="text-gray-400 mt-4 md:mt-0">&copy; 2024 Bixo. All rights reserved.</p>
           </div>
         </div>

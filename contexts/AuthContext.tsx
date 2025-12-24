@@ -17,6 +17,19 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper to normalize userType from API (may be string or number) to UserType enum
+function normalizeUserType(userType: string | number): UserType {
+  if (typeof userType === 'number') {
+    return userType as UserType;
+  }
+  const typeMap: Record<string, UserType> = {
+    'candidate': UserType.Candidate,
+    'company': UserType.Company,
+    'admin': UserType.Admin,
+  };
+  return typeMap[userType.toLowerCase()] ?? UserType.Candidate;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -30,7 +43,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await api.get<UserResponse>('/auth/me');
       if (response.success && response.data) {
-        setUser(response.data);
+        // Normalize userType from API (may be string like "Company" or number like 1)
+        const normalizedUser = {
+          ...response.data,
+          userType: normalizeUserType(response.data.userType as unknown as string | number),
+        };
+        setUser(normalizedUser);
       }
     } catch {
       // Not authenticated
@@ -106,7 +124,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: true };
     }
 
-    return { success: false, error: response.error || 'Registration failed' };
+    // Handle both 'error' and 'message' fields from API
+    const errorMsg = response.error || (response as unknown as { message?: string }).message || 'Registration failed';
+    return { success: false, error: errorMsg };
   };
 
   const registerCompany = async (email: string, password: string, companyName: string, industry: string) => {
@@ -124,7 +144,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: true };
     }
 
-    return { success: false, error: response.error || 'Registration failed' };
+    // Handle both 'error' and 'message' fields from API
+    const errorMsg = response.error || (response as unknown as { message?: string }).message || 'Registration failed';
+    return { success: false, error: errorMsg };
   };
 
   const logout = () => {

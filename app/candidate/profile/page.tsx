@@ -38,8 +38,8 @@ export default function CandidateProfilePage() {
     }
   }, [authLoading, user]);
 
-  const loadProfile = async () => {
-    setIsLoading(true);
+  const loadProfile = async (showLoader = true) => {
+    if (showLoader) setIsLoading(true);
     const res = await api.get<CandidateProfile>('/candidates/profile');
     if (res.success && res.data) {
       setProfile(res.data);
@@ -86,7 +86,7 @@ export default function CandidateProfilePage() {
 
     if (res.success) {
       setSuccess('Profile updated successfully');
-      loadProfile();
+      loadProfile(false);
     } else {
       setError(res.error || 'Failed to update profile');
     }
@@ -142,7 +142,7 @@ export default function CandidateProfilePage() {
       }
 
       setSuccess('CV uploaded successfully! Skills will be extracted shortly.');
-      loadProfile();
+      loadProfile(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload CV');
     } finally {
@@ -181,7 +181,15 @@ export default function CandidateProfilePage() {
         <Card className="mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Resume / CV</h2>
 
-          {profile?.cvFileName ? (
+          {isUploading ? (
+            <div className="border-2 border-dashed border-blue-300 rounded-xl p-8 text-center bg-blue-50">
+              <div className="flex flex-col items-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                <p className="font-medium text-blue-700">Uploading CV...</p>
+                <p className="text-sm text-blue-600 mt-1">Please wait while we process your file</p>
+              </div>
+            </div>
+          ) : profile?.cvFileName ? (
             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
               <div className="flex items-center gap-3">
                 <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

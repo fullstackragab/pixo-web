@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, DynaPuff } from "next/font/google";
+import { Geist, Geist_Mono, Nunito } from "next/font/google";
 import { AuthProvider } from "@/contexts/AuthContext";
 import "./globals.css";
 
@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const dynaPuff = DynaPuff({
-  variable: "--font-dynapuff",
+const nunito = Nunito({
+  variable: "--font-nunito",
   subsets: ["latin"],
 });
 
@@ -31,7 +31,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${dynaPuff.variable} antialiased bg-gray-50`}
+        className={`${geistSans.variable} ${geistMono.variable} ${nunito.variable} antialiased bg-gray-50`}
       >
         <AuthProvider>{children}</AuthProvider>
       </body>
