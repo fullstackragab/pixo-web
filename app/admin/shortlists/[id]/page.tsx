@@ -47,7 +47,7 @@ interface ShortlistDetail {
   locationPreference?: string | null;
   remoteAllowed?: boolean;
   additionalNotes?: string | null;
-  status: string;
+  status: string; // Normalized to lowercase string
   pricePaid: number | null;
   createdAt: string;
   completedAt: string | null;
@@ -61,6 +61,46 @@ interface ShortlistDetail {
   repeatedCandidatesCount?: number;
   chain?: ShortlistChainItem[];
 }
+
+// Helper to normalize status to lowercase string
+const normalizeStatus = (status: string | number): string => {
+  if (typeof status === 'number') {
+    const statusMap: Record<number, string> = {
+      0: 'pending',
+      1: 'processing',
+      2: 'completed',
+      3: 'cancelled'
+    };
+    return statusMap[status] || 'pending';
+  }
+  return status.toLowerCase();
+};
+
+// Helper to normalize seniority from string to enum
+const normalizeSeniority = (seniority: string | SeniorityLevel | null | undefined): SeniorityLevel | null => {
+  if (seniority === null || seniority === undefined) return null;
+  if (typeof seniority === 'number') return seniority;
+  const seniorityMap: Record<string, SeniorityLevel> = {
+    'junior': SeniorityLevel.Junior,
+    'mid': SeniorityLevel.Mid,
+    'senior': SeniorityLevel.Senior,
+    'lead': SeniorityLevel.Lead,
+    'principal': SeniorityLevel.Principal
+  };
+  return seniorityMap[seniority.toLowerCase()] ?? null;
+};
+
+// Helper to parse techStackRequired which may come as JSON string
+const parseTechStack = (techStack: string[] | string | undefined): string[] => {
+  if (!techStack) return [];
+  if (Array.isArray(techStack)) return techStack;
+  try {
+    const parsed = JSON.parse(techStack);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
 
 export default function ShortlistDetailPage() {
   const params = useParams();
@@ -79,9 +119,25 @@ export default function ShortlistDetailPage() {
   const loadShortlist = async () => {
     setIsLoading(true);
     setError(null);
-    const res = await api.get<ShortlistDetail>(`/admin/shortlists/${shortlistId}`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = await api.get<any>(`/admin/shortlists/${shortlistId}`);
     if (res.success && res.data) {
-      setShortlist(res.data);
+      // Normalize the data from backend
+      const data = res.data;
+      const normalizedData: ShortlistDetail = {
+        ...data,
+        status: normalizeStatus(data.status),
+        techStackRequired: parseTechStack(data.techStackRequired),
+        seniorityRequired: normalizeSeniority(data.seniorityRequired),
+        remoteAllowed: data.remoteAllowed ?? data.isRemote ?? false,
+        candidates: (data.candidates || []).map((c: ShortlistCandidate & { seniorityEstimate?: string | SeniorityLevel }) => ({
+          ...c,
+          seniorityEstimate: normalizeSeniority(c.seniorityEstimate),
+          skills: c.skills || [],
+          availability: c.availability ?? Availability.Open
+        }))
+      };
+      setShortlist(normalizedData);
     } else {
       setError(res.error || 'Failed to load shortlist');
     }
@@ -165,7 +221,7 @@ export default function ShortlistDetailPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch (status) {
       case 'pending':
         return <Badge variant="warning">Pending</Badge>;
       case 'processing':
@@ -185,7 +241,10 @@ export default function ShortlistDetailPage() {
     return labels[seniority] || 'Any';
   };
 
-  const getAvailabilityBadge = (availability: Availability) => {
+  const getAvailabilityBadge = (availability: Availability | undefined | null) => {
+    if (availability === undefined || availability === null) {
+      return <Badge variant="default">Unknown</Badge>;
+    }
     switch (availability) {
       case Availability.Open:
         return <Badge variant="success">Open</Badge>;
@@ -193,6 +252,8 @@ export default function ShortlistDetailPage() {
         return <Badge variant="warning">Passive</Badge>;
       case Availability.NotNow:
         return <Badge variant="default">Not Looking</Badge>;
+      default:
+        return <Badge variant="default">Unknown</Badge>;
     }
   };
 
@@ -252,12 +313,12 @@ export default function ShortlistDetailPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          {shortlist.status.toLowerCase() === 'pending' && (
+          {shortlist.status === 'pending' && (
             <Button onClick={() => updateStatus('processing')}>
               Start Processing
             </Button>
           )}
-          {shortlist.status.toLowerCase() === 'processing' && (
+          {shortlist.status === 'processing' && (
             <>
               <Button variant="outline" onClick={saveChanges} isLoading={isSaving}>
                 Save Changes
@@ -393,7 +454,7 @@ export default function ShortlistDetailPage() {
                           value={candidate.rank}
                           onChange={(e) => updateRank(candidate.candidateId, parseInt(e.target.value) || 1)}
                           className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
-                          disabled={shortlist.status.toLowerCase() !== 'processing'}
+                          disabled={shortlist.status !== 'processing'}
                         />
                       </div>
                       <Button
