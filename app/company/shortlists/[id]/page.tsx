@@ -354,7 +354,9 @@ export default function CompanyShortlistDetailPage() {
                         </div>
 
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm">View Profile</Button>
+                          <Link href={`/company/talent/${candidate.candidateId}?shortlistId=${shortlistId}`}>
+                            <Button variant="outline" size="sm">View Profile</Button>
+                          </Link>
                         </div>
                       </div>
                     </div>

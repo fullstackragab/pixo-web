@@ -8,7 +8,7 @@ import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import api from '@/lib/api';
-import { CompanyProfile, ShortlistRequest, SubscriptionTier, ShortlistStatus } from '@/types';
+import { CompanyProfile, ShortlistRequest, ShortlistStatus } from '@/types';
 
 export default function CompanyDashboard() {
   const { user, isLoading: authLoading } = useAuth();
@@ -36,17 +36,6 @@ export default function CompanyDashboard() {
       setShortlists(shortlistsRes.data.slice(0, 5));
     }
     setIsLoading(false);
-  };
-
-  const getSubscriptionBadge = (tier: SubscriptionTier) => {
-    switch (tier) {
-      case SubscriptionTier.Free:
-        return <Badge variant="default">Free</Badge>;
-      case SubscriptionTier.Starter:
-        return <Badge variant="primary">Starter</Badge>;
-      case SubscriptionTier.Pro:
-        return <Badge variant="success">Pro</Badge>;
-    }
   };
 
   const getShortlistStatusBadge = (status: ShortlistStatus) => {
@@ -89,24 +78,8 @@ export default function CompanyDashboard() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Stats */}
-          <Card>
-            <div className="text-center">
-              <p className="text-sm font-medium text-gray-500">Subscription</p>
-              <div className="mt-2">
-                {profile && getSubscriptionBadge(profile.subscriptionTier)}
-              </div>
-            </div>
-          </Card>
-
-          <Card>
-            <div className="text-center">
-              <p className="text-sm font-medium text-gray-500">Messages Left</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{profile?.messagesRemaining || 0}</p>
-            </div>
-          </Card>
-
           <Card>
             <div className="text-center">
               <p className="text-sm font-medium text-gray-500">Active Shortlists</p>
