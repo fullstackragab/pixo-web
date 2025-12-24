@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
+import PageContainer, { PageWrapper } from '@/components/layout/PageContainer';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
@@ -160,10 +161,10 @@ export default function CandidateProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <PageWrapper>
       <Header />
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <PageContainer variant="default">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 sm:mb-8">Edit Profile</h1>
 
         {error && (
@@ -382,7 +383,7 @@ export default function CandidateProfilePage() {
         <Button className="w-full" onClick={handleSave} isLoading={isSaving}>
           Save Changes
         </Button>
-      </main>
-    </div>
+      </PageContainer>
+    </PageWrapper>
   );
 }

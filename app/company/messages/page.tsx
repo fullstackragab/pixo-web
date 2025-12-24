@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
+import PageContainer, { PageWrapper } from '@/components/layout/PageContainer';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
@@ -48,10 +49,10 @@ export default function CompanyMessagesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <PageWrapper>
       <Header />
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <PageContainer variant="default">
         <h1 className="text-2xl font-bold text-gray-900 mb-8">Messages</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -121,7 +122,7 @@ export default function CompanyMessagesPage() {
             </Card>
           </div>
         </div>
-      </main>
-    </div>
+      </PageContainer>
+    </PageWrapper>
   );
 }

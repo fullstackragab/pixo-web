@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/layout/Header";
+import PageContainer, { PageWrapper } from "@/components/layout/PageContainer";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -140,15 +141,15 @@ export default function CandidateProfilePage() {
 
   if (error || !candidate) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <PageWrapper>
         <Header />
-        <main className="max-w-5xl mx-auto px-4 py-12 text-center">
+        <PageContainer className="py-12 text-center">
           <p className="text-gray-500">{error || "Candidate not found"}</p>
           <Link href={backLink}>
             <Button className="mt-4">{backLabel}</Button>
           </Link>
-        </main>
-      </div>
+        </PageContainer>
+      </PageWrapper>
     );
   }
 
@@ -160,10 +161,10 @@ export default function CandidateProfilePage() {
   const skills = candidate.skills?.map(s => s.skillName) || candidate.topSkills || [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <PageWrapper>
       <Header />
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <PageContainer variant="default">
         <Link
           href={backLink}
           className="text-sm text-blue-600 hover:text-blue-700 mb-4 inline-block"
@@ -312,7 +313,7 @@ export default function CandidateProfilePage() {
             )}
           </div>
         </div>
-      </main>
+      </PageContainer>
 
       {/* Message Modal - only available when verified in shortlist */}
       {showFullProfile && (
@@ -323,6 +324,6 @@ export default function CandidateProfilePage() {
           onClose={() => setShowMessageModal(false)}
         />
       )}
-    </div>
+    </PageWrapper>
   );
 }

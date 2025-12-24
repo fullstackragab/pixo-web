@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import PageContainer, { PageWrapper } from '@/components/layout/PageContainer';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Card from '@/components/ui/Card';
@@ -40,8 +41,8 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <PageWrapper className="flex items-center justify-center py-12">
+      <PageContainer variant="narrow" className="space-y-8">
         <div className="text-center">
           <Link href="/" className="text-3xl font-bold text-blue-600">
             Bixo
@@ -165,7 +166,7 @@ export default function RegisterPage() {
             </p>
           </form>
         </Card>
-      </div>
-    </div>
+      </PageContainer>
+    </PageWrapper>
   );
 }

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import PageContainer, { PageWrapper } from '@/components/layout/PageContainer';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Card from '@/components/ui/Card';
@@ -67,8 +68,8 @@ export default function SupportPage() {
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full">
+      <PageWrapper className="flex items-center justify-center py-12">
+        <PageContainer variant="narrow">
           <Card>
             <div className="text-center py-8">
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
@@ -92,14 +93,14 @@ export default function SupportPage() {
               </div>
             </div>
           </Card>
-        </div>
-      </div>
+        </PageContainer>
+      </PageWrapper>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <PageWrapper className="flex items-center justify-center py-12">
+      <PageContainer variant="narrow" className="space-y-8">
         <div className="text-center">
           <Link href="/" className="text-3xl font-bold text-blue-600">
             Bixo
@@ -183,7 +184,7 @@ export default function SupportPage() {
             Back to Home
           </Link>
         </div>
-      </div>
-    </div>
+      </PageContainer>
+    </PageWrapper>
   );
 }

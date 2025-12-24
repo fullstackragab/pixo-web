@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import PageContainer from '@/components/layout/PageContainer';
 import Button from '@/components/ui/Button';
 
 export default function HomePage() {
@@ -11,7 +12,7 @@ export default function HomePage() {
       <Header />
 
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20">
+      <PageContainer as="section" variant="wide" verticalPadding="lg" className="sm:py-20">
         <div className="text-center">
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
             We help companies talk to the
@@ -29,10 +30,10 @@ export default function HomePage() {
             </Link>
           </div>
         </div>
-      </section>
+      </PageContainer>
 
       {/* How it Works */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20">
+      <PageContainer as="section" variant="wide" verticalPadding="lg" className="sm:py-20">
         <h2 className="text-2xl sm:text-3xl font-bold text-center text-gray-900 mb-8 sm:mb-12">How Bixo Works</h2>
 
         <div className="grid md:grid-cols-2 gap-6 sm:gap-12">
@@ -94,11 +95,11 @@ export default function HomePage() {
             <p className="mt-8 text-gray-600">Starting at <span className="font-bold text-gray-900">$49/month</span></p>
           </div>
         </div>
-      </section>
+      </PageContainer>
 
       {/* Pricing */}
       <section className="bg-gray-50 py-12 sm:py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <PageContainer variant="wide" verticalPadding="none">
           <h2 className="text-2xl sm:text-3xl font-bold text-center text-gray-900 mb-4">Simple, Transparent Pricing</h2>
           <p className="text-center text-gray-600 mb-8 sm:mb-12">Choose the plan that fits your hiring needs</p>
 
@@ -176,17 +177,17 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-        </div>
+        </PageContainer>
       </section>
 
       {/* CTA */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20 text-center">
+      <PageContainer as="section" variant="wide" verticalPadding="lg" className="sm:py-20 text-center">
         <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">Ready to find your next hire?</h2>
         <p className="text-lg sm:text-xl text-gray-600 mb-8">Join thousands of companies finding top tech talent on Bixo</p>
         <Link href="/register">
           <Button size="lg">Get Started Free</Button>
         </Link>
-      </section>
+      </PageContainer>
 
       <Footer />
     </div>

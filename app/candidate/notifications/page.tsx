@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
+import PageContainer, { PageWrapper } from '@/components/layout/PageContainer';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import api from '@/lib/api';
@@ -51,10 +52,10 @@ export default function CandidateNotificationsPage() {
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <PageWrapper>
       <Header />
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <PageContainer variant="default">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
@@ -111,7 +112,7 @@ export default function CandidateNotificationsPage() {
             </div>
           )}
         </Card>
-      </main>
-    </div>
+      </PageContainer>
+    </PageWrapper>
   );
 }

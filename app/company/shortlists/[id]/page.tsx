@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
+import PageContainer, { PageWrapper } from '@/components/layout/PageContainer';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
@@ -163,23 +164,23 @@ export default function CompanyShortlistDetailPage() {
 
   if (!shortlist) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <PageWrapper>
         <Header />
-        <main className="max-w-5xl mx-auto px-4 py-12 text-center">
+        <PageContainer className="py-12 text-center">
           <p className="text-gray-500">Shortlist not found</p>
           <Link href="/company/shortlists">
             <Button className="mt-4">Back to Shortlists</Button>
           </Link>
-        </main>
-      </div>
+        </PageContainer>
+      </PageWrapper>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <PageWrapper>
       <Header />
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <PageContainer variant="default">
         {/* Header */}
         <div className="flex items-start justify-between mb-8">
           <div>
@@ -470,7 +471,7 @@ export default function CompanyShortlistDetailPage() {
           onClose={() => setIsMessageModalOpen(false)}
           onSuccess={() => loadMessages()}
         />
-      </main>
-    </div>
+      </PageContainer>
+    </PageWrapper>
   );
 }

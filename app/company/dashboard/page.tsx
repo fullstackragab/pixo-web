@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
+import PageContainer, { PageWrapper } from '@/components/layout/PageContainer';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
@@ -157,10 +158,10 @@ export default function CompanyDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <PageWrapper>
       <Header />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <PageContainer variant="wide">
         {/* Welcome Header with Dynamic CTA */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -319,7 +320,7 @@ export default function CompanyDashboard() {
             </Link>
           </div>
         )}
-      </main>
-    </div>
+      </PageContainer>
+    </PageWrapper>
   );
 }

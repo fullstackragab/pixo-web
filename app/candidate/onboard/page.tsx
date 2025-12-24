@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/layout/Header';
+import PageContainer, { PageWrapper } from '@/components/layout/PageContainer';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -104,10 +105,10 @@ export default function CandidateOnboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <PageWrapper>
       <Header />
 
-      <main className="max-w-2xl mx-auto px-4 py-12">
+      <PageContainer variant="narrow" verticalPadding="lg">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Complete Your Profile</h1>
           <p className="text-gray-600 mt-2">Help us match you with the right opportunities</p>
@@ -266,7 +267,7 @@ export default function CandidateOnboardPage() {
             </div>
           </Card>
         )}
-      </main>
-    </div>
+      </PageContainer>
+    </PageWrapper>
   );
 }
