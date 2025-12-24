@@ -279,3 +279,36 @@ export interface Notification {
   isRead: boolean;
   createdAt: string;
 }
+
+// Support message types
+export enum SupportMessageStatus {
+  New = 0,
+  Read = 1,
+  Replied = 2
+}
+
+export interface SupportMessage {
+  id: string;
+  userId?: string;
+  userType?: UserType;
+  userEmail?: string;
+  contactEmail?: string;
+  subject: string;
+  message: string;
+  status: SupportMessageStatus;
+  createdAt: string;
+}
+
+export interface SupportMessageListItem {
+  id: string;
+  subject: string;
+  userType?: UserType;
+  status: SupportMessageStatus;
+  createdAt: string;
+}
+
+export interface CreateSupportMessageRequest {
+  subject: string;
+  message: string;
+  contactEmail?: string;
+}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
 import Card from '@/components/ui/Card';
@@ -183,6 +184,12 @@ export default function CompanySettingsPage() {
             </div>
             <Button variant="outline">Upgrade Plan</Button>
           </div>
+          <p className="text-sm text-gray-500 mt-4">
+            Something doesn&apos;t look right?{' '}
+            <Link href="/support" className="text-blue-600 hover:text-blue-700">
+              Contact support
+            </Link>
+          </p>
         </Card>
 
         <Button className="w-full" onClick={handleSave} isLoading={isSaving}>

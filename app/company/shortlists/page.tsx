@@ -372,6 +372,12 @@ function CompanyShortlistsContent() {
               on similar requests within 30 days.
             </p>
           </div>
+          <p className="text-sm text-gray-500 mt-4">
+            Something doesn&apos;t look right?{' '}
+            <Link href="/support" className="text-blue-600 hover:text-blue-700">
+              Contact support
+            </Link>
+          </p>
         </Card>
       </main>
     </div>
