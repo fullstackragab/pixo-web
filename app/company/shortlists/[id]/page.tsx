@@ -9,19 +9,21 @@ import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import api from '@/lib/api';
-import { ShortlistStatus, SeniorityLevel, Availability, ShortlistPricingType } from '@/types';
+import { ShortlistPricingType, ShortlistMessage } from '@/types';
+import SendShortlistMessageModal from '@/components/SendShortlistMessageModal';
 
 interface ShortlistCandidate {
   candidateId: string;
   firstName: string | null;
   lastName: string | null;
   desiredRole: string | null;
-  seniorityEstimate: SeniorityLevel | null;
-  availability: Availability;
+  seniorityEstimate: string | null;
+  availability: string;
   matchScore: number;
   matchReason: string | null;
   rank: number;
-  skills: string[];
+  skills?: string[];
+  topSkills?: string[];
   // Versioning fields
   isNew?: boolean;
   previouslyRecommendedIn?: string | null;
@@ -40,11 +42,11 @@ interface ShortlistDetail {
   id: string;
   roleTitle: string;
   techStackRequired: string[];
-  seniorityRequired: SeniorityLevel | null;
+  seniorityRequired: string | null;
   locationPreference: string | null;
   remoteAllowed: boolean;
   additionalNotes: string | null;
-  status: ShortlistStatus;
+  status: string;
   createdAt: string;
   pricePaid?: number;
   candidates: ShortlistCandidate[];
@@ -66,6 +68,8 @@ export default function CompanyShortlistDetailPage() {
 
   const [shortlist, setShortlist] = useState<ShortlistDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [messages, setMessages] = useState<ShortlistMessage[]>([]);
+  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
 
   const handleRequestMore = () => {
     if (!shortlist) return;
@@ -83,6 +87,7 @@ export default function CompanyShortlistDetailPage() {
   useEffect(() => {
     if (!authLoading && user && shortlistId) {
       loadShortlist();
+      loadMessages();
     }
   }, [authLoading, user, shortlistId]);
 
@@ -95,33 +100,56 @@ export default function CompanyShortlistDetailPage() {
     setIsLoading(false);
   };
 
-  const getStatusBadge = (status: ShortlistStatus) => {
-    switch (status) {
-      case ShortlistStatus.Pending:
-        return <Badge variant="warning">Pending Review</Badge>;
-      case ShortlistStatus.Processing:
-        return <Badge variant="primary">Being Curated</Badge>;
-      case ShortlistStatus.Completed:
-        return <Badge variant="success">Ready</Badge>;
-      case ShortlistStatus.Cancelled:
-        return <Badge variant="danger">Cancelled</Badge>;
+  const loadMessages = async () => {
+    const res = await api.get<ShortlistMessage[]>(`/shortlists/${shortlistId}/messages`);
+    if (res.success && res.data) {
+      setMessages(res.data);
     }
   };
 
-  const getSeniorityLabel = (seniority: SeniorityLevel | null) => {
-    if (seniority === null) return 'Any';
-    const labels = ['Junior', 'Mid', 'Senior', 'Lead', 'Principal'];
-    return labels[seniority];
+  const getStatusBadge = (status: string) => {
+    const normalizedStatus = status.toLowerCase();
+    switch (normalizedStatus) {
+      case 'pending':
+        return <Badge variant="warning">Pending Review</Badge>;
+      case 'processing':
+        return <Badge variant="primary">Being Curated</Badge>;
+      case 'completed':
+        return <Badge variant="success">Ready</Badge>;
+      case 'cancelled':
+        return <Badge variant="danger">Cancelled</Badge>;
+      default:
+        return <Badge variant="default">{status}</Badge>;
+    }
   };
 
-  const getAvailabilityBadge = (availability: Availability) => {
-    switch (availability) {
-      case Availability.Open:
+  const isStatusCompleted = (status: string) => {
+    return status.toLowerCase() === 'completed';
+  };
+
+  const isStatusPendingOrProcessing = (status: string) => {
+    const normalized = status.toLowerCase();
+    return normalized === 'pending' || normalized === 'processing';
+  };
+
+  const getSeniorityLabel = (seniority: string | null) => {
+    if (seniority === null) return 'Any';
+    // Capitalize first letter
+    return seniority.charAt(0).toUpperCase() + seniority.slice(1).toLowerCase();
+  };
+
+  const getAvailabilityBadge = (availability: string) => {
+    const normalizedAvailability = availability.toLowerCase();
+    switch (normalizedAvailability) {
+      case 'open':
         return <Badge variant="success">Actively Looking</Badge>;
-      case Availability.Passive:
+      case 'passive':
         return <Badge variant="warning">Open</Badge>;
-      case Availability.NotNow:
+      case 'notnow':
+      case 'not_now':
         return <Badge variant="default">Not Looking</Badge>;
+      default:
+        return <Badge variant="default">{availability}</Badge>;
     }
   };
 
@@ -171,7 +199,7 @@ export default function CompanyShortlistDetailPage() {
               </span>
             </div>
           </div>
-          {shortlist.status === ShortlistStatus.Completed && (
+          {isStatusCompleted(shortlist.status) && (
             <Button variant="outline" onClick={handleRequestMore}>
               Request More Candidates
             </Button>
@@ -200,7 +228,7 @@ export default function CompanyShortlistDetailPage() {
         )}
 
         {/* Candidate Stats */}
-        {shortlist.status === ShortlistStatus.Completed && (shortlist.newCandidatesCount !== undefined || shortlist.repeatedCandidatesCount !== undefined) && (
+        {isStatusCompleted(shortlist.status) && (shortlist.newCandidatesCount !== undefined || shortlist.repeatedCandidatesCount !== undefined) && (
           <Card className="mb-6">
             <div className="flex items-center gap-8">
               <div className="text-center">
@@ -259,83 +287,85 @@ export default function CompanyShortlistDetailPage() {
             Matched Candidates ({shortlist.candidates.length})
           </h2>
 
-          {shortlist.status === ShortlistStatus.Completed && shortlist.candidates.length > 0 ? (
+          {isStatusCompleted(shortlist.status) && shortlist.candidates.length > 0 ? (
             <div className="space-y-4">
               {shortlist.candidates
                 .sort((a, b) => a.rank - b.rank)
-                .map((candidate) => (
-                  <div
-                    key={candidate.candidateId}
-                    className={`p-4 border rounded-lg hover:border-blue-200 transition-colors ${
-                      candidate.isNew === false ? 'border-yellow-200 bg-yellow-50/30' : 'border-gray-200'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3">
-                          <span className="text-lg font-bold text-blue-600">#{candidate.rank}</span>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold text-gray-900">
-                                {candidate.firstName && candidate.lastName
-                                  ? `${candidate.firstName} ${candidate.lastName.charAt(0)}.`
-                                  : 'Candidate'}
-                              </h3>
-                              {candidate.isNew !== undefined && (
-                                <Badge variant={candidate.isNew ? 'success' : 'warning'}>
-                                  {candidate.statusLabel || (candidate.isNew ? 'New' : 'Previously recommended')}
-                                </Badge>
+                .map((candidate) => {
+                  const skills = candidate.skills || candidate.topSkills || [];
+                  return (
+                    <div
+                      key={candidate.candidateId}
+                      className={`p-4 border rounded-lg hover:border-blue-200 transition-colors ${
+                        candidate.isNew === false ? 'border-yellow-200 bg-yellow-50/30' : 'border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3">
+                            <span className="text-lg font-bold text-blue-600">#{candidate.rank}</span>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-gray-900">
+                                  {candidate.firstName && candidate.lastName
+                                    ? `${candidate.firstName} ${candidate.lastName.charAt(0)}.`
+                                    : 'Candidate'}
+                                </h3>
+                                {candidate.isNew !== undefined && (
+                                  <Badge variant={candidate.isNew ? 'success' : 'warning'}>
+                                    {candidate.statusLabel || (candidate.isNew ? 'New' : 'Previously recommended')}
+                                  </Badge>
+                                )}
+                              </div>
+                              {candidate.desiredRole && (
+                                <p className="text-sm text-gray-600">{candidate.desiredRole}</p>
                               )}
                             </div>
-                            {candidate.desiredRole && (
-                              <p className="text-sm text-gray-600">{candidate.desiredRole}</p>
-                            )}
                           </div>
-                        </div>
 
-                        {/* Re-inclusion reason for repeated candidates */}
-                        {!candidate.isNew && candidate.reInclusionReason && (
-                          <div className="mt-2 p-2 bg-yellow-100 border border-yellow-200 rounded text-sm text-yellow-800">
-                            <span className="font-medium">Re-included because:</span> {candidate.reInclusionReason}
-                          </div>
-                        )}
-
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          {getAvailabilityBadge(candidate.availability)}
-                          {candidate.seniorityEstimate !== null && (
-                            <Badge variant="default">{getSeniorityLabel(candidate.seniorityEstimate)}</Badge>
+                          {/* Re-inclusion reason for repeated candidates */}
+                          {!candidate.isNew && candidate.reInclusionReason && (
+                            <div className="mt-2 p-2 bg-yellow-100 border border-yellow-200 rounded text-sm text-yellow-800">
+                              <span className="font-medium">Re-included because:</span> {candidate.reInclusionReason}
+                            </div>
                           )}
-                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-sm rounded font-medium">
-                            {candidate.matchScore}% match
-                          </span>
+
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            {getAvailabilityBadge(candidate.availability)}
+                            {candidate.seniorityEstimate !== null && (
+                              <Badge variant="default">{getSeniorityLabel(candidate.seniorityEstimate)}</Badge>
+                            )}
+                            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-sm rounded font-medium">
+                              {candidate.matchScore}% match
+                            </span>
+                          </div>
+
+                          {skills.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-3">
+                              {skills.slice(0, 8).map((skill, i) => (
+                                <Badge key={i} variant="primary">{skill}</Badge>
+                              ))}
+                            </div>
+                          )}
+
+                          {candidate.matchReason && (
+                            <p className="text-sm text-gray-500 mt-3 italic">{candidate.matchReason}</p>
+                          )}
                         </div>
 
-                        {candidate.skills.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-3">
-                            {candidate.skills.slice(0, 8).map((skill, i) => (
-                              <Badge key={i} variant="primary">{skill}</Badge>
-                            ))}
-                          </div>
-                        )}
-
-                        {candidate.matchReason && (
-                          <p className="text-sm text-gray-500 mt-3 italic">{candidate.matchReason}</p>
-                        )}
-                      </div>
-
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">View Profile</Button>
-                        <Button size="sm">Message</Button>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm">View Profile</Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
             </div>
-          ) : shortlist.status === ShortlistStatus.Pending || shortlist.status === ShortlistStatus.Processing ? (
+          ) : isStatusPendingOrProcessing(shortlist.status) ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
               <p className="text-gray-500 mt-4">
-                {shortlist.status === ShortlistStatus.Pending
+                {shortlist.status.toLowerCase() === 'pending'
                   ? 'Your shortlist request is being reviewed...'
                   : 'Our team is curating the best candidates for you...'}
               </p>
@@ -345,6 +375,41 @@ export default function CompanyShortlistDetailPage() {
             <p className="text-gray-500 text-center py-8">No candidates available</p>
           )}
         </Card>
+
+        {/* Messaging Section */}
+        {isStatusCompleted(shortlist.status) && shortlist.candidates.length > 0 && (
+          <Card className="mt-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Messages to Candidates</h2>
+              <Button onClick={() => setIsMessageModalOpen(true)}>
+                Send Messages
+              </Button>
+            </div>
+
+            <p className="text-sm text-gray-500 mb-4">
+              Send a short informational message to all candidates in this shortlist. Candidates cannot reply.
+            </p>
+
+            {messages.length > 0 ? (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-gray-700">Previously Sent Messages</h3>
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className="p-4 bg-gray-50 border border-gray-200 rounded-lg"
+                  >
+                    <p className="text-gray-700 whitespace-pre-wrap">{message.content}</p>
+                    <p className="text-xs text-gray-400 mt-2">
+                      Sent {new Date(message.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-400 text-center py-4">No messages sent yet</p>
+            )}
+          </Card>
+        )}
 
         {/* Related Shortlists Chain */}
         {shortlist.chain && shortlist.chain.length > 1 && (
@@ -393,6 +458,16 @@ export default function CompanyShortlistDetailPage() {
             </div>
           </Card>
         )}
+
+        {/* Send Message Modal */}
+        <SendShortlistMessageModal
+          shortlistId={shortlistId}
+          roleTitle={shortlist.roleTitle}
+          candidateCount={shortlist.candidates.length}
+          isOpen={isMessageModalOpen}
+          onClose={() => setIsMessageModalOpen(false)}
+          onSuccess={() => loadMessages()}
+        />
       </main>
     </div>
   );

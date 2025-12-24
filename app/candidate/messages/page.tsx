@@ -5,7 +5,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
-import Button from '@/components/ui/Button';
 import api from '@/lib/api';
 
 interface Message {
@@ -17,6 +16,10 @@ interface Message {
   content: string;
   isRead: boolean;
   createdAt: string;
+  // Shortlist message fields
+  shortlistId?: string;
+  shortlistRoleTitle?: string;
+  companyLocation?: string;
 }
 
 export default function CandidateMessagesPage() {
@@ -67,7 +70,12 @@ export default function CandidateMessagesPage() {
       <Header />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-8">Messages</h1>
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
+          <p className="text-gray-500 mt-1">
+            You have messages from companies regarding shortlists you were added to. Messages are informational only.
+          </p>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Message List */}
@@ -97,6 +105,11 @@ export default function CandidateMessagesPage() {
                           <Badge variant="primary">New</Badge>
                         )}
                       </div>
+                      {message.shortlistRoleTitle && (
+                        <p className="text-xs text-blue-600 mb-1">
+                          {message.shortlistRoleTitle}
+                        </p>
+                      )}
                       <p className={`text-sm truncate ${message.isRead ? 'text-gray-500' : 'text-gray-700'}`}>
                         {message.subject || message.content.substring(0, 50)}
                       </p>
@@ -118,21 +131,30 @@ export default function CandidateMessagesPage() {
               {selectedMessage ? (
                 <div>
                   <div className="border-b border-gray-200 pb-4 mb-4">
+                    {selectedMessage.shortlistRoleTitle && (
+                      <p className="text-sm text-blue-600 mb-2">
+                        Regarding: {selectedMessage.shortlistRoleTitle}
+                      </p>
+                    )}
                     <h2 className="text-lg font-semibold text-gray-900">
-                      {selectedMessage.subject || 'No subject'}
+                      {selectedMessage.subject || 'Message from company'}
                     </h2>
-                    <p className="text-sm text-gray-500 mt-1">
-                      From: {selectedMessage.fromCompanyName || selectedMessage.fromUserEmail}
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      {new Date(selectedMessage.createdAt).toLocaleString()}
-                    </p>
+                    <div className="mt-2 space-y-1">
+                      <p className="text-sm text-gray-500">
+                        From: {selectedMessage.fromCompanyName || selectedMessage.fromUserEmail}
+                      </p>
+                      {selectedMessage.companyLocation && (
+                        <p className="text-sm text-gray-400">
+                          Location: {selectedMessage.companyLocation}
+                        </p>
+                      )}
+                      <p className="text-sm text-gray-400">
+                        {new Date(selectedMessage.createdAt).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
                   <div className="prose prose-sm max-w-none">
                     <p className="text-gray-700 whitespace-pre-wrap">{selectedMessage.content}</p>
-                  </div>
-                  <div className="mt-6 pt-4 border-t border-gray-200">
-                    <Button variant="outline">Reply</Button>
                   </div>
                 </div>
               ) : (
