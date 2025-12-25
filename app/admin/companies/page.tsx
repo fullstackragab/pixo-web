@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
@@ -88,15 +89,6 @@ export default function AdminCompaniesPage() {
   const handleSearch = () => {
     setPage(1);
     loadCompanies();
-  };
-
-  const updateMessages = async (companyId: string, messages: number) => {
-    const res = await api.put(`/admin/companies/${companyId}/messages`, { messagesRemaining: messages });
-    if (res.success) {
-      setCompanies(companies.map(c =>
-        c.id === companyId ? { ...c, messagesRemaining: messages } : c
-      ));
-    }
   };
 
   const getSubscriptionBadge = (tier: string | number) => {
@@ -198,30 +190,14 @@ export default function AdminCompaniesPage() {
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-500">Messages:</span>
-                      <span className="ml-1 text-gray-900 font-medium">{company.messagesRemaining}</span>
-                      <button
-                        onClick={() => {
-                          const newValue = prompt('Set messages remaining:', String(company.messagesRemaining));
-                          if (newValue !== null) {
-                            const num = parseInt(newValue);
-                            if (!isNaN(num) && num >= 0) {
-                              updateMessages(company.id, num);
-                            }
-                          }
-                        }}
-                        className="ml-1 text-xs text-blue-600 hover:underline"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                    <div>
                       <span className="text-gray-500">Shortlists:</span>
                       <span className="ml-1 text-gray-900">{company.shortlistsCount}</span>
                     </div>
                   </div>
                   <div className="flex justify-end">
-                    <Button variant="ghost" size="sm">View</Button>
+                    <Link href={`/admin/companies/${company.id}`}>
+                      <Button variant="ghost" size="sm">View</Button>
+                    </Link>
                   </div>
                 </div>
               ))}
@@ -237,7 +213,6 @@ export default function AdminCompaniesPage() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Industry</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subscription</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expires</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Messages</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Shortlists</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Saved</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -269,29 +244,12 @@ export default function AdminCompaniesPage() {
                           ? new Date(company.subscriptionExpiresAt).toLocaleDateString()
                           : '-'}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-900 font-medium">{company.messagesRemaining}</span>
-                          <button
-                            onClick={() => {
-                              const newValue = prompt('Set messages remaining:', String(company.messagesRemaining));
-                              if (newValue !== null) {
-                                const num = parseInt(newValue);
-                                if (!isNaN(num) && num >= 0) {
-                                  updateMessages(company.id, num);
-                                }
-                              }
-                            }}
-                            className="text-xs text-blue-600 hover:underline"
-                          >
-                            Edit
-                          </button>
-                        </div>
-                      </td>
                       <td className="px-4 py-3 text-gray-600">{company.shortlistsCount}</td>
                       <td className="px-4 py-3 text-gray-600">{company.savedCandidatesCount}</td>
                       <td className="px-4 py-3">
-                        <Button variant="ghost" size="sm">View</Button>
+                        <Link href={`/admin/companies/${company.id}`}>
+                          <Button variant="ghost" size="sm">View</Button>
+                        </Link>
                       </td>
                     </tr>
                   ))}
