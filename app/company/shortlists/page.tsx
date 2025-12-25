@@ -13,6 +13,7 @@ import Input from '@/components/ui/Input';
 import HiringLocationInput from '@/components/ui/HiringLocationInput';
 import api from '@/lib/api';
 import { ShortlistStatus, SeniorityLevel, HiringLocation, ShortlistPricingType } from '@/types';
+import Breadcrumb, { companyBreadcrumbs } from '@/components/ui/Breadcrumb';
 
 interface ShortlistRequest {
   id: string;
@@ -170,6 +171,8 @@ function CompanyShortlistsContent() {
       <Header />
 
       <PageContainer variant="wide">
+        <Breadcrumb items={companyBreadcrumbs.shortlists()} />
+
         {error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
             {error}

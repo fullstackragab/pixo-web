@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Input from './Input';
 import { HiringLocation } from '@/types';
 
@@ -78,11 +78,62 @@ export default function HiringLocationInput({
   label = 'Hiring Location',
 }: HiringLocationInputProps) {
   const [showTimezone, setShowTimezone] = useState(false);
+  const [countryInput, setCountryInput] = useState(value.country || '');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [filteredCountries, setFilteredCountries] = useState<string[]>([]);
+  const countryInputRef = useRef<HTMLDivElement>(null);
+
+  // Sync countryInput with value.country when it changes externally
+  useEffect(() => {
+    setCountryInput(value.country || '');
+  }, [value.country]);
+
+  // Filter countries based on input
+  useEffect(() => {
+    if (countryInput.trim()) {
+      const filtered = COMMON_COUNTRIES.filter(country =>
+        country.toLowerCase().includes(countryInput.toLowerCase())
+      );
+      setFilteredCountries(filtered);
+    } else {
+      setFilteredCountries(COMMON_COUNTRIES);
+    }
+  }, [countryInput]);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (countryInputRef.current && !countryInputRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleChange = (field: keyof HiringLocation, fieldValue: string | boolean) => {
     onChange({
       ...value,
       [field]: fieldValue,
+    });
+  };
+
+  const handleCountryInputChange = (inputValue: string) => {
+    setCountryInput(inputValue);
+    setShowSuggestions(true);
+    // Save the raw value as-is
+    onChange({
+      ...value,
+      country: inputValue || undefined,
+    });
+  };
+
+  const handleCountrySuggestionClick = (country: string) => {
+    setCountryInput(country);
+    setShowSuggestions(false);
+    onChange({
+      ...value,
+      country: country,
     });
   };
 
@@ -110,22 +161,32 @@ export default function HiringLocationInput({
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
+          <div ref={countryInputRef} className="relative">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Country
             </label>
-            <select
-              value={value.country || ''}
-              onChange={(e) => handleChange('country', e.target.value)}
+            <input
+              type="text"
+              value={countryInput}
+              onChange={(e) => handleCountryInputChange(e.target.value)}
+              onFocus={() => setShowSuggestions(true)}
+              placeholder="Type country (optional)"
               className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Select country...</option>
-              {COMMON_COUNTRIES.map((country) => (
-                <option key={country} value={country}>
-                  {country}
-                </option>
-              ))}
-            </select>
+            />
+            <p className="text-xs text-gray-500 mt-1">If you don&apos;t see it, just type it.</p>
+            {showSuggestions && filteredCountries.length > 0 && (
+              <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                {filteredCountries.map((country) => (
+                  <li
+                    key={country}
+                    onClick={() => handleCountrySuggestionClick(country)}
+                    className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm"
+                  >
+                    {country}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <Input

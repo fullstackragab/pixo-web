@@ -7,6 +7,7 @@ import PageContainer, { PageWrapper } from '@/components/layout/PageContainer';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
+import Breadcrumb, { companyBreadcrumbs } from '@/components/ui/Breadcrumb';
 import api from '@/lib/api';
 
 interface Message {
@@ -52,7 +53,8 @@ export default function CompanyMessagesPage() {
     <PageWrapper>
       <Header />
 
-      <PageContainer variant="default">
+      <PageContainer variant="wide">
+        <Breadcrumb items={companyBreadcrumbs.messages()} />
         <h1 className="text-2xl font-bold text-gray-900 mb-8">Messages</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

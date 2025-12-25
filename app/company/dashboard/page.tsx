@@ -8,6 +8,7 @@ import PageContainer, { PageWrapper } from '@/components/layout/PageContainer';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
+import Breadcrumb, { companyBreadcrumbs } from '@/components/ui/Breadcrumb';
 import api from '@/lib/api';
 import { CompanyProfile, ShortlistRequest, ShortlistStatus } from '@/types';
 
@@ -162,6 +163,8 @@ export default function CompanyDashboard() {
       <Header />
 
       <PageContainer variant="wide">
+        <Breadcrumb items={companyBreadcrumbs.dashboard()} />
+
         {/* Welcome Header with Dynamic CTA */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>

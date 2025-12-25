@@ -10,6 +10,7 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import api from '@/lib/api';
 import { SeniorityLevel, Availability } from '@/types';
+import Breadcrumb, { companyBreadcrumbs } from '@/components/ui/Breadcrumb';
 
 interface SavedCandidate {
   id: string;
@@ -144,6 +145,8 @@ export default function CompanySavedPage() {
       <Header />
 
       <PageContainer variant="wide">
+        <Breadcrumb items={companyBreadcrumbs.saved()} />
+
         {error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
             {error}

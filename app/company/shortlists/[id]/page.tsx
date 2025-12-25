@@ -12,6 +12,7 @@ import Button from '@/components/ui/Button';
 import api from '@/lib/api';
 import { ShortlistPricingType, ShortlistMessage } from '@/types';
 import SendShortlistMessageModal from '@/components/SendShortlistMessageModal';
+import Breadcrumb, { companyBreadcrumbs } from '@/components/ui/Breadcrumb';
 
 interface ShortlistCandidate {
   candidateId: string;
@@ -181,12 +182,11 @@ export default function CompanyShortlistDetailPage() {
       <Header />
 
       <PageContainer variant="wide">
+        <Breadcrumb items={companyBreadcrumbs.shortlistDetail(shortlist.roleTitle)} />
+
         {/* Header */}
         <div className="flex items-start justify-between mb-8">
           <div>
-            <Link href="/company/shortlists" className="text-sm text-blue-600 hover:text-blue-700 mb-2 inline-block">
-              &larr; Back to Shortlists
-            </Link>
             <h1 className="text-2xl font-bold text-gray-900">{shortlist.roleTitle}</h1>
             <div className="flex items-center gap-3 mt-2">
               {getStatusBadge(shortlist.status)}

@@ -11,6 +11,7 @@ import Input from '@/components/ui/Input';
 import LocationInput from '@/components/ui/LocationInput';
 import api from '@/lib/api';
 import { CompanyProfile, Location } from '@/types';
+import Breadcrumb, { companyBreadcrumbs } from '@/components/ui/Breadcrumb';
 
 export default function CompanySettingsPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -85,6 +86,7 @@ export default function CompanySettingsPage() {
       <Header />
 
       <PageContainer variant="wide">
+        <Breadcrumb items={companyBreadcrumbs.settings()} />
         <h1 className="text-2xl font-bold text-gray-900 mb-8">Company Settings</h1>
 
         {error && (
