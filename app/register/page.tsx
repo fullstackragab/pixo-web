@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import PageContainer, { PageWrapper } from '@/components/layout/PageContainer';
 import Button from '@/components/ui/Button';
@@ -44,8 +45,15 @@ export default function RegisterPage() {
     <PageWrapper className="flex items-center justify-center py-12">
       <PageContainer variant="full" className="max-w-2xl space-y-8">
         <div className="text-center">
-          <Link href="/" className="text-3xl font-bold text-blue-600">
-            Bixo
+          <Link href="/">
+            <Image
+              src="/logo+name.png"
+              alt="Bixo"
+              width={120}
+              height={40}
+              className="mx-auto"
+              priority
+            />
           </Link>
           <h2 className="mt-6 text-2xl font-bold text-gray-900">
             Create your account
