@@ -10,9 +10,9 @@ interface ShortlistOutcomeMessageProps {
 }
 
 const OUTCOME_MESSAGES: Record<ShortlistOutcome, string> = {
-  fulfilled: 'Your shortlist has been delivered. Payment completed.',
+  fulfilled: 'Your shortlist has been delivered.',
   partial: 'We delivered a partial shortlist and adjusted pricing accordingly.',
-  no_match: "We couldn't confidently recommend candidates for this role. You were not charged.",
+  no_match: "We couldn't confidently recommend candidates for this role. No payment is required.",
 };
 
 const OUTCOME_STYLES: Record<ShortlistOutcome, { bg: string; border: string; icon: string }> = {
