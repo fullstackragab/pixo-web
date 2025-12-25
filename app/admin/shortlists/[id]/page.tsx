@@ -136,7 +136,6 @@ export default function ShortlistDetailPage() {
 
   const [shortlist, setShortlist] = useState<ShortlistDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [isMatching, setIsMatching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Scope proposal state
@@ -145,6 +144,7 @@ export default function ShortlistDetailPage() {
   const [proposedPrice, setProposedPrice] = useState<string>('');
   const [scopeNotes, setScopeNotes] = useState<string>('');
   const [isProposing, setIsProposing] = useState(false);
+  const [backgroundSaveError, setBackgroundSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     loadShortlist();
@@ -196,26 +196,6 @@ export default function ShortlistDetailPage() {
         c.candidateId === candidateId ? { ...c, rank: newRank } : c
       )
     });
-  };
-
-  const saveChanges = async () => {
-    if (!shortlist || !shortlist.candidates) return;
-    setIsSaving(true);
-    setError(null);
-
-    const rankings = shortlist.candidates.map(c => ({
-      candidateId: c.candidateId,
-      rank: c.rank,
-      adminApproved: c.adminApproved
-    }));
-
-    const res = await api.put(`/admin/shortlists/${shortlistId}/rankings`, { rankings });
-    if (res.success) {
-      setError(null);
-    } else {
-      setError(res.error || 'Failed to save changes');
-    }
-    setIsSaving(false);
   };
 
   const updateStatus = async (newStatus: string) => {
@@ -285,6 +265,7 @@ export default function ShortlistDetailPage() {
     setIsProposing(true);
     setError(null);
 
+    // Propose the scope (candidates were saved in background when modal opened)
     const res = await api.post(`/admin/shortlists/${shortlistId}/scope/propose`, {
       proposedCandidates: candidates,
       proposedPrice: price,
@@ -303,13 +284,27 @@ export default function ShortlistDetailPage() {
     setIsProposing(false);
   };
 
-  // Open scope modal with pre-filled values
-  const openScopeModal = () => {
+  // Open scope modal with pre-filled values and save candidates in background
+  const openScopeModal = async () => {
     const approvedCount = shortlist?.candidates?.filter(c => c.adminApproved).length || 0;
     setProposedCandidates(approvedCount.toString() || '');
     setProposedPrice(shortlist?.proposedPrice?.toString() || shortlist?.quotedPrice?.toString() || '299');
     setScopeNotes(shortlist?.scopeNotes || '');
+    setBackgroundSaveError(null);
     setShowScopeModal(true);
+
+    // Save approved candidates in background while admin reviews the modal
+    if (shortlist?.candidates) {
+      const rankings = shortlist.candidates.map(c => ({
+        candidateId: c.candidateId,
+        rank: c.rank,
+        adminApproved: c.adminApproved
+      }));
+      const res = await api.put(`/admin/shortlists/${shortlistId}/rankings`, { rankings });
+      if (!res.success) {
+        setBackgroundSaveError(res.error || 'Failed to save candidate rankings');
+      }
+    }
   };
 
   // Check if scope can be proposed
@@ -523,9 +518,6 @@ export default function ShortlistDetailPage() {
           )}
           {(['processing', 'matching', 'readyforpricing', 'pricingpending', 'pricingrequested', 'pricingapproved', 'approved'].includes(shortlist.status.toLowerCase())) && (
             <>
-              <Button variant="outline" onClick={saveChanges} isLoading={isSaving}>
-                Save Changes
-              </Button>
               {canProposeScope() && !isScopeProposed() && (
                 <Button variant="primary" onClick={openScopeModal}>
                   Propose Scope & Price
@@ -776,6 +768,38 @@ export default function ShortlistDetailPage() {
             </p>
 
             <div className="space-y-4">
+              {/* Background save error */}
+              {backgroundSaveError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <svg className="w-5 h-5 text-red-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <p className="text-sm font-medium text-red-800">Failed to save candidates</p>
+                      <p className="text-sm text-red-700 mt-0.5">{backgroundSaveError}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Follow-up discount reminder */}
+              {shortlist.isFollowUp && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <svg className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div>
+                      <p className="text-sm font-medium text-amber-800">Follow-up Request</p>
+                      <p className="text-sm text-amber-700 mt-0.5">
+                        Remember to apply the follow-up discount when setting the price.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <Input
                 label="Expected Candidates"
                 id="proposedCandidates"
@@ -787,14 +811,14 @@ export default function ShortlistDetailPage() {
               />
 
               <Input
-                label="Price (USD)"
+                label={shortlist.isFollowUp ? "Price (USD) - Apply discount" : "Price (USD)"}
                 id="proposedPrice"
                 type="number"
                 min="0"
                 step="0.01"
                 value={proposedPrice}
                 onChange={(e) => setProposedPrice(e.target.value)}
-                placeholder="e.g., 299.00"
+                placeholder={shortlist.isFollowUp ? "e.g., 149.00 (discounted)" : "e.g., 299.00"}
               />
 
               <div>
@@ -835,6 +859,7 @@ export default function ShortlistDetailPage() {
               <Button
                 onClick={handleProposeScope}
                 isLoading={isProposing}
+                disabled={!!backgroundSaveError}
                 className="flex-1"
               >
                 Send to Company
