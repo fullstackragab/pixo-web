@@ -7,7 +7,8 @@ import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import api from '@/lib/api';
-import { ShortlistPricingType } from '@/types';
+import { ShortlistPricingType, ScopeApprovalStatus, ShortlistStatusString } from '@/types';
+import Input from '@/components/ui/Input';
 
 interface ShortlistCandidate {
   id: string;
@@ -47,7 +48,7 @@ interface ShortlistDetail {
   locationPreference?: string | null;
   remoteAllowed?: boolean;
   additionalNotes?: string | null;
-  status: string; // Normalized to lowercase string
+  status: string | ShortlistStatusString; // Normalized to lowercase string
   pricePaid: number | null;
   createdAt: string;
   completedAt: string | null;
@@ -60,6 +61,15 @@ interface ShortlistDetail {
   newCandidatesCount?: number;
   repeatedCandidatesCount?: number;
   chain?: ShortlistChainItem[];
+  // Scope approval (backend-driven)
+  scopeApprovalStatus?: ScopeApprovalStatus;
+  proposedCandidates?: number;
+  proposedPrice?: number;
+  scopeNotes?: string;
+  scopeProposedAt?: string;
+  // Legacy
+  pricingApprovalStatus?: ScopeApprovalStatus;
+  quotedPrice?: number;
 }
 
 // Helper to normalize status to lowercase string
@@ -127,6 +137,12 @@ export default function ShortlistDetailPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isMatching, setIsMatching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Scope proposal state
+  const [showScopeModal, setShowScopeModal] = useState(false);
+  const [proposedCandidates, setProposedCandidates] = useState<string>('');
+  const [proposedPrice, setProposedPrice] = useState<string>('');
+  const [scopeNotes, setScopeNotes] = useState<string>('');
+  const [isProposing, setIsProposing] = useState(false);
 
   useEffect(() => {
     loadShortlist();
@@ -236,19 +252,127 @@ export default function ShortlistDetailPage() {
     setIsMatching(false);
   };
 
+  // Propose scope to company
+  const handleProposeScope = async () => {
+    const candidates = parseInt(proposedCandidates);
+    const price = parseFloat(proposedPrice);
+
+    if (isNaN(candidates) || candidates <= 0) {
+      setError('Please enter a valid number of candidates');
+      return;
+    }
+    if (isNaN(price) || price <= 0) {
+      setError('Please enter a valid price');
+      return;
+    }
+
+    setIsProposing(true);
+    setError(null);
+
+    const res = await api.post(`/admin/shortlists/${shortlistId}/scope/propose`, {
+      proposedCandidates: candidates,
+      proposedPrice: price,
+      notes: scopeNotes || undefined
+    });
+
+    if (res.success) {
+      setShowScopeModal(false);
+      setProposedCandidates('');
+      setProposedPrice('');
+      setScopeNotes('');
+      await loadShortlist();
+    } else {
+      setError(res.error || 'Failed to propose scope');
+    }
+    setIsProposing(false);
+  };
+
+  // Open scope modal with pre-filled values
+  const openScopeModal = () => {
+    const approvedCount = shortlist?.candidates?.filter(c => c.adminApproved).length || 0;
+    setProposedCandidates(approvedCount.toString() || '');
+    setProposedPrice(shortlist?.proposedPrice?.toString() || shortlist?.quotedPrice?.toString() || '299');
+    setScopeNotes(shortlist?.scopeNotes || '');
+    setShowScopeModal(true);
+  };
+
+  // Check if scope can be proposed
+  const canProposeScope = (): boolean => {
+    if (!shortlist) return false;
+    const hasApprovedCandidates = shortlist.candidates && shortlist.candidates.some(c => c.adminApproved);
+    const isReadyForPricing = ['matching', 'readyforpricing', 'processing'].includes(shortlist.status.toLowerCase());
+    return isReadyForPricing && !!hasApprovedCandidates;
+  };
+
+  // Check if scope has been proposed
+  const isScopeProposed = (): boolean => {
+    if (!shortlist) return false;
+    return shortlist.status.toLowerCase() === 'pricingrequested' ||
+           shortlist.scopeProposedAt !== undefined ||
+           shortlist.proposedPrice !== undefined;
+  };
+
   const getStatusBadge = (status: string) => {
-    switch (status) {
+    const s = status.toLowerCase();
+    switch (s) {
+      case 'draft':
+        return <Badge variant="default">Draft</Badge>;
+      case 'matching':
+        return <Badge variant="primary">Matching</Badge>;
+      case 'readyforpricing':
+        return <Badge variant="warning">Ready for Pricing</Badge>;
+      case 'pricingrequested':
+        return <Badge variant="warning">Pricing Requested</Badge>;
+      case 'pricingapproved':
+        return <Badge variant="success">Pricing Approved</Badge>;
+      case 'delivered':
+        return <Badge variant="success">Delivered</Badge>;
+      case 'paymentcaptured':
+        return <Badge variant="success">Payment Captured</Badge>;
       case 'pending':
         return <Badge variant="warning">Pending</Badge>;
       case 'processing':
         return <Badge variant="primary">Processing</Badge>;
       case 'completed':
-        return <Badge variant="success">Completed</Badge>;
+        return <Badge variant="success">Delivered</Badge>;
       case 'cancelled':
         return <Badge variant="danger">Cancelled</Badge>;
       default:
         return <Badge variant="default">{status}</Badge>;
     }
+  };
+
+  const getScopeStatusBadge = (scopeStatus: ScopeApprovalStatus | undefined) => {
+    switch (scopeStatus) {
+      case 'approved':
+        return <Badge variant="success">Scope: Approved</Badge>;
+      case 'declined':
+        return <Badge variant="danger">Scope: Declined</Badge>;
+      case 'pending':
+        return <Badge variant="warning">Scope: Awaiting approval</Badge>;
+      default:
+        return null;
+    }
+  };
+
+  // Check if delivery is allowed (scope must be approved and candidates must be approved)
+  const canDeliver = (): boolean => {
+    if (!shortlist) return false;
+    const hasScopeApproval = shortlist.scopeApprovalStatus === 'approved' || shortlist.pricingApprovalStatus === 'approved';
+    const hasApprovedCandidates = shortlist.candidates && shortlist.candidates.some(c => c.adminApproved);
+    return hasScopeApproval && !!hasApprovedCandidates;
+  };
+
+  const getDeliveryDisabledReason = (): string | null => {
+    if (!shortlist) return null;
+    const hasScopeApproval = shortlist.scopeApprovalStatus === 'approved' || shortlist.pricingApprovalStatus === 'approved';
+    if (!hasScopeApproval) {
+      return 'Shortlist can be delivered once scope is approved by the company.';
+    }
+    if (!shortlist.candidates || !shortlist.candidates.some(c => c.adminApproved)) {
+      return 'At least one candidate must be approved before delivery.';
+    }
+    return null;
   };
 
   const getSeniorityLabel = (seniority: string | number | null | undefined) => {
@@ -322,6 +446,7 @@ export default function ShortlistDetailPage() {
             </Link>
             <h1 className="text-2xl font-bold text-gray-900">{shortlist.roleTitle}</h1>
             {getStatusBadge(shortlist.status)}
+            {shortlist.status.toLowerCase() !== 'completed' && shortlist.status.toLowerCase() !== 'delivered' && getScopeStatusBadge(shortlist.scopeApprovalStatus || shortlist.pricingApprovalStatus)}
             {shortlist.isFollowUp && (
               <Badge variant="primary">
                 Follow-up {shortlist.followUpDiscount ? `(${shortlist.followUpDiscount}% discount)` : ''}
@@ -334,20 +459,59 @@ export default function ShortlistDetailPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          {shortlist.status === 'pending' && (
+          {(shortlist.status === 'pending' || shortlist.status === 'draft') && (
             <Button onClick={() => updateStatus('processing')}>
               Start Processing
             </Button>
           )}
-          {shortlist.status === 'processing' && (
+          {(shortlist.status === 'processing' || shortlist.status === 'matching' || shortlist.status === 'readyForPricing') && (
             <>
               <Button variant="outline" onClick={saveChanges} isLoading={isSaving}>
                 Save Changes
               </Button>
-              <Button onClick={deliverShortlist}>
+              {canProposeScope() && !isScopeProposed() && (
+                <Button variant="primary" onClick={openScopeModal}>
+                  Propose Scope & Price
+                </Button>
+              )}
+              {isScopeProposed() && !canDeliver() && (
+                <Button variant="outline" onClick={openScopeModal}>
+                  Update Scope
+                </Button>
+              )}
+              <div className="relative group">
+                <Button
+                  onClick={deliverShortlist}
+                  disabled={!canDeliver()}
+                  className={!canDeliver() ? 'opacity-50 cursor-not-allowed' : ''}
+                >
+                  Deliver to Company
+                </Button>
+                {!canDeliver() && getDeliveryDisabledReason() && (
+                  <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                    {getDeliveryDisabledReason()}
+                    <div className="absolute top-full right-4 border-4 border-transparent border-t-gray-900"></div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+          {shortlist.status === 'pricingApproved' && (
+            <div className="relative group">
+              <Button
+                onClick={deliverShortlist}
+                disabled={!canDeliver()}
+                className={!canDeliver() ? 'opacity-50 cursor-not-allowed' : ''}
+              >
                 Deliver to Company
               </Button>
-            </>
+              {!canDeliver() && getDeliveryDisabledReason() && (
+                <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                  {getDeliveryDisabledReason()}
+                  <div className="absolute top-full right-4 border-4 border-transparent border-t-gray-900"></div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -376,9 +540,16 @@ export default function ShortlistDetailPage() {
             </p>
           </div>
           <div>
-            <p className="text-sm text-gray-500">Price Paid</p>
+            <p className="text-sm text-gray-500">Quoted Price</p>
             <p className="font-medium text-gray-900">
-              {shortlist.pricePaid ? `$${shortlist.pricePaid}` : 'Not paid'}
+              {shortlist.quotedPrice ? `$${shortlist.quotedPrice}` : 'Pending'}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              {shortlist.pricingApprovalStatus === 'approved'
+                ? 'Company approved'
+                : shortlist.pricingApprovalStatus === 'declined'
+                  ? 'Company declined'
+                  : 'Awaiting approval'}
             </p>
           </div>
         </div>
@@ -547,6 +718,84 @@ export default function ShortlistDetailPage() {
             </div>
           </div>
         </Card>
+      )}
+
+      {/* Scope Proposal Modal */}
+      {showScopeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Propose Scope & Price</h2>
+            <p className="text-sm text-gray-600 mb-6">
+              Set the expected candidate count and price. The company will need to approve before you can deliver.
+            </p>
+
+            <div className="space-y-4">
+              <Input
+                label="Expected Candidates"
+                id="proposedCandidates"
+                type="number"
+                min="1"
+                value={proposedCandidates}
+                onChange={(e) => setProposedCandidates(e.target.value)}
+                placeholder="e.g., 5"
+              />
+
+              <Input
+                label="Price (USD)"
+                id="proposedPrice"
+                type="number"
+                min="0"
+                step="0.01"
+                value={proposedPrice}
+                onChange={(e) => setProposedPrice(e.target.value)}
+                placeholder="e.g., 299.00"
+              />
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Notes (optional)
+                </label>
+                <textarea
+                  value={scopeNotes}
+                  onChange={(e) => setScopeNotes(e.target.value)}
+                  placeholder="Any notes about the scope..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              {/* Summary */}
+              <div className="bg-gray-50 rounded-lg p-3 text-sm">
+                <div className="flex justify-between mb-1">
+                  <span className="text-gray-500">Approved candidates:</span>
+                  <span className="font-medium">{shortlist?.candidates?.filter(c => c.adminApproved).length || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Total candidates:</span>
+                  <span className="font-medium">{shortlist?.candidates?.length || 0}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setShowScopeModal(false)}
+                disabled={isProposing}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleProposeScope}
+                isLoading={isProposing}
+                className="flex-1"
+              >
+                Send to Company
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

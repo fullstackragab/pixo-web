@@ -66,15 +66,73 @@ export enum SubscriptionTier {
 }
 
 export enum ShortlistStatus {
-  Pending = 0,
-  Processing = 1,
-  Completed = 2,
-  Cancelled = 3
+  Draft = 0,
+  Matching = 1,
+  ReadyForPricing = 2,
+  PricingRequested = 3,
+  PricingApproved = 4,
+  Delivered = 5,
+  PaymentCaptured = 6,
+  Cancelled = 7
 }
+
+// String values for ShortlistStatus (backend returns these)
+export type ShortlistStatusString =
+  | 'draft'
+  | 'matching'
+  | 'readyForPricing'
+  | 'pricingRequested'
+  | 'pricingApproved'
+  | 'delivered'
+  | 'paymentCaptured'
+  | 'cancelled';
+
+// Payment status for payment records
+export type PaymentStatus =
+  | 'pendingApproval'
+  | 'authorized'
+  | 'captured'
+  | 'partial'
+  | 'released'
+  | 'canceled'
+  | 'failed';
+
+// Payment provider types
+export type PaymentProvider = 'stripe' | 'paypal' | 'usdc';
 
 // Payment outcome types (read-only, backend-driven)
 export type ShortlistOutcome = 'fulfilled' | 'partial' | 'no_match';
 export type PaymentPricingType = 'full' | 'partial' | 'free';
+
+// Scope/Pricing approval status (read-only, backend-driven)
+// Used to gate delivery until company has approved scope
+export type ScopeApprovalStatus = 'pending' | 'approved' | 'declined';
+
+// Legacy alias for backwards compatibility
+export type PricingApprovalStatus = ScopeApprovalStatus;
+
+// Scope approval request (company approves scope and authorizes payment)
+export interface ScopeApprovalRequest {
+  confirmApproval: boolean; // Must be true (explicit consent)
+  provider: PaymentProvider;
+}
+
+// Scope proposal request (admin proposes scope and price)
+export interface ProposeScopeRequest {
+  proposedCandidates: number; // Expected candidate count
+  proposedPrice: number; // Exact price in USD
+  notes?: string; // Optional notes
+}
+
+// Payment authorization response
+export interface PaymentAuthorizationResponse {
+  success: boolean;
+  clientSecret?: string; // Stripe
+  approvalUrl?: string; // PayPal
+  escrowAddress?: string; // USDC
+  providerReference?: string;
+  error?: string;
+}
 
 // API Response wrapper
 export interface ApiResponse<T> {
@@ -220,7 +278,7 @@ export interface ShortlistRequest {
   hiringLocation?: HiringLocation;
   remoteAllowed: boolean;
   additionalNotes?: string;
-  status: ShortlistStatus;
+  status: ShortlistStatus | ShortlistStatusString;
   pricePaid?: number;
   createdAt: string;
   completedAt?: string;
@@ -236,6 +294,18 @@ export interface ShortlistRequest {
   shortlistOutcome?: ShortlistOutcome;
   paymentPricingType?: PaymentPricingType;
   finalPrice?: number;
+  // Scope approval fields (backend-driven, read-only)
+  // Delivery is gated until scopeApprovalStatus === 'approved'
+  scopeApprovalStatus?: ScopeApprovalStatus;
+  proposedCandidates?: number; // Expected candidate count from admin
+  proposedPrice?: number; // Exact price proposed by admin
+  scopeProposedAt?: string; // When admin proposed scope
+  scopeApprovedAt?: string; // When company approved
+  scopeNotes?: string; // Notes from admin about scope
+  // Legacy alias
+  pricingApprovalStatus?: PricingApprovalStatus;
+  quotedPrice?: number;
+  approvedCandidatesCount?: number;
 }
 
 export interface ShortlistCandidate {

@@ -19,14 +19,23 @@ import Breadcrumb, { companyBreadcrumbs } from '@/components/ui/Breadcrumb';
 const normalizeStatus = (status: string | number): string => {
   if (typeof status === 'number') {
     const statusMap: Record<number, string> = {
-      0: 'pending',
-      1: 'processing',
-      2: 'completed',
-      3: 'cancelled'
+      0: 'draft',
+      1: 'matching',
+      2: 'readyForPricing',
+      3: 'pricingRequested',
+      4: 'pricingApproved',
+      5: 'delivered',
+      6: 'paymentCaptured',
+      7: 'cancelled'
     };
-    return statusMap[status] || 'pending';
+    return statusMap[status] || 'draft';
   }
-  return status.toLowerCase();
+  // Map old status values to new ones for backwards compatibility
+  const s = status.toLowerCase();
+  if (s === 'pending') return 'draft';
+  if (s === 'processing') return 'matching';
+  if (s === 'completed') return 'delivered';
+  return s;
 };
 
 interface ShortlistRequest {
@@ -162,12 +171,20 @@ function CompanyShortlistsContent() {
   const getStatusBadge = (status: string | number) => {
     const normalized = normalizeStatus(status);
     switch (normalized) {
-      case 'pending':
-        return <Badge variant="warning">Pending</Badge>;
-      case 'processing':
-        return <Badge variant="primary">Processing</Badge>;
-      case 'completed':
+      case 'draft':
+        return <Badge variant="default">Draft</Badge>;
+      case 'matching':
+        return <Badge variant="primary">Matching</Badge>;
+      case 'readyforpricing':
+        return <Badge variant="warning">Ready for Pricing</Badge>;
+      case 'pricingrequested':
+        return <Badge variant="warning">Action Required</Badge>;
+      case 'pricingapproved':
+        return <Badge variant="primary">Being Curated</Badge>;
+      case 'delivered':
         return <Badge variant="success">Delivered</Badge>;
+      case 'paymentcaptured':
+        return <Badge variant="success">Complete</Badge>;
       case 'cancelled':
         return <Badge variant="danger">Cancelled</Badge>;
       default:
@@ -371,35 +388,52 @@ function CompanyShortlistsContent() {
           )}
         </Card>
 
-        {/* Pricing */}
+        {/* Pricing Info */}
         <Card className="mt-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Shortlist Pricing</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 border border-gray-200 rounded-lg text-center">
-              <p className="font-medium text-gray-900">Single Shortlist</p>
-              <p className="text-2xl font-bold text-blue-600 mt-1">$299</p>
-              <p className="text-sm text-gray-500">Per role</p>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">How Pricing Works</h2>
+          <div className="space-y-4">
+            <div className="flex items-start gap-4">
+              <div className="shrink-0 p-2 bg-blue-100 rounded-lg">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Outcome-Based Pricing</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  You only pay after we successfully deliver a shortlist. If we can&apos;t find suitable candidates, you won&apos;t be charged.
+                </p>
+              </div>
             </div>
-            <div className="p-4 border border-blue-200 bg-blue-50 rounded-lg text-center">
-              <p className="font-medium text-gray-900">5 Shortlists</p>
-              <p className="text-2xl font-bold text-blue-600 mt-1">$1,299</p>
-              <p className="text-sm text-green-600">Save 13%</p>
+            <div className="flex items-start gap-4">
+              <div className="shrink-0 p-2 bg-green-100 rounded-lg">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Review Before You Pay</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  When your shortlist is ready, you&apos;ll review the pricing and approve it before delivery. No surprise charges.
+                </p>
+              </div>
             </div>
-            <div className="p-4 border border-gray-200 rounded-lg text-center">
-              <p className="font-medium text-gray-900">10 Shortlists</p>
-              <p className="text-2xl font-bold text-blue-600 mt-1">$2,299</p>
-              <p className="text-sm text-green-600">Save 23%</p>
+            <div className="flex items-start gap-4">
+              <div className="shrink-0 p-2 bg-purple-100 rounded-lg">
+                <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Follow-up Discounts</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Need more candidates for the same role? Follow-up requests qualify for reduced pricing.
+                </p>
+              </div>
             </div>
           </div>
-          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <p className="font-medium text-green-800">Follow-up Discounts</p>
-            <p className="text-sm text-green-700 mt-1">
-              Need more candidates for a role? Request a follow-up shortlist and save up to 50%
-              on similar requests within 30 days.
-            </p>
-          </div>
-          <p className="text-sm text-gray-500 mt-4">
-            Something doesn&apos;t look right?{' '}
+          <p className="text-sm text-gray-500 mt-6 pt-4 border-t border-gray-100">
+            Questions about pricing?{' '}
             <Link href="/support" className="text-blue-600 hover:text-blue-700">
               Contact support
             </Link>

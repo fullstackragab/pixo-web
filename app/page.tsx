@@ -130,7 +130,7 @@ export default function HomePage() {
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">How Pricing Works</h2>
             <div className="space-y-4 text-lg text-gray-600">
               <p>Pricing is outcome-based.</p>
-              <p>You authorize payment first and are charged only after a shortlist is delivered.</p>
+              <p>You review and approve pricing before delivery. Payment is collected only after you receive your shortlist.</p>
               <p className="font-medium text-gray-900">No delivery = no charge.</p>
             </div>
             <p className="mt-8 text-gray-500">
