@@ -80,9 +80,21 @@ function AdminShortlistsContent() {
   const filteredShortlists = useMemo(() => {
     let filtered = shortlists;
 
-    // Filter by status
+    // Filter by status (handle grouped statuses)
     if (filterStatus !== 'all') {
-      filtered = filtered.filter(s => s.status === filterStatus);
+      filtered = filtered.filter(s => {
+        const status = s.status.toLowerCase();
+        switch (filterStatus) {
+          case 'processing':
+            return status === 'processing' || status === 'matching';
+          case 'pricingpending':
+            return status === 'pricingpending' || status === 'pricingrequested';
+          case 'completed':
+            return status === 'completed' || status === 'paymentcaptured';
+          default:
+            return status === filterStatus;
+        }
+      });
     }
 
     // Filter by search query
@@ -124,7 +136,8 @@ function AdminShortlistsContent() {
       };
       return statusMap[status] || 'pending';
     }
-    return status.toLowerCase();
+    // Remove underscores and lowercase for consistency
+    return status.toLowerCase().replace(/_/g, '');
   };
 
   const loadShortlists = useCallback(async () => {
@@ -176,17 +189,36 @@ function AdminShortlistsContent() {
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status.toLowerCase()) {
+    const s = status.toLowerCase().replace(/_/g, '');
+    switch (s) {
+      case "draft":
+        return <Badge variant="default">Draft</Badge>;
       case "pending":
         return <Badge variant="warning">Pending</Badge>;
+      case "submitted":
+        return <Badge variant="primary">Submitted</Badge>;
       case "processing":
+      case "matching":
         return <Badge variant="primary">Processing</Badge>;
+      case "readyforpricing":
+        return <Badge variant="warning">Ready for Pricing</Badge>;
+      case "pricingpending":
+      case "pricingrequested":
+        return <Badge variant="warning">Awaiting Approval</Badge>;
+      case "pricingapproved":
+        return <Badge variant="success">Approved</Badge>;
       case "completed":
-        return <Badge variant="success">Completed</Badge>;
+      case "delivered":
+        return <Badge variant="success">Delivered</Badge>;
+      case "paymentcaptured":
+        return <Badge variant="success">Complete</Badge>;
       case "cancelled":
         return <Badge variant="danger">Cancelled</Badge>;
       default:
-        return <Badge variant="default">{status}</Badge>;
+        // Format unknown status in title case
+        const displayStatus = s.replace(/([a-z])([A-Z])/g, '$1 $2')
+          .replace(/^./, str => str.toUpperCase());
+        return <Badge variant="default">{displayStatus}</Badge>;
     }
   };
 
@@ -283,31 +315,59 @@ function AdminShortlistsContent() {
 
           {/* Status Filters */}
           <div className="flex flex-wrap gap-2">
-            {["all", "pending", "processing", "completed", "cancelled"].map(
-              (status) => {
-                const count = statusCounts[status] || 0;
-                const isPending = status === 'pending' && count > 0;
+            {[
+              { key: "all", label: "All" },
+              { key: "pending", label: "Pending" },
+              { key: "submitted", label: "Submitted" },
+              { key: "processing", label: "Processing" },
+              { key: "pricingpending", label: "Awaiting Approval" },
+              { key: "pricingapproved", label: "Approved" },
+              { key: "delivered", label: "Delivered" },
+              { key: "completed", label: "Complete" },
+            ].map(({ key, label }) => {
+                // Count matching statuses (some statuses group together)
+                let count = 0;
+                if (key === 'all') {
+                  count = shortlists.length;
+                } else if (key === 'processing') {
+                  count = (statusCounts['processing'] || 0) + (statusCounts['matching'] || 0);
+                } else if (key === 'pricingpending') {
+                  count = (statusCounts['pricingpending'] || 0) + (statusCounts['pricingrequested'] || 0);
+                } else if (key === 'delivered') {
+                  count = (statusCounts['delivered'] || 0);
+                } else if (key === 'completed') {
+                  count = (statusCounts['completed'] || 0) + (statusCounts['paymentcaptured'] || 0);
+                } else {
+                  count = statusCounts[key] || 0;
+                }
+
+                const isUrgent = (key === 'pending' || key === 'submitted') && count > 0;
+                const isSelected = filterStatus === key;
+
+                // Skip filters with 0 count (except All)
+                if (count === 0 && key !== 'all') return null;
+
                 return (
                   <button
-                    key={status}
+                    key={key}
                     onClick={() => {
-                      setFilterStatus(status);
+                      setFilterStatus(key);
                       setPage(1);
                     }}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                      filterStatus === status
+                      isSelected
                         ? "bg-blue-600 text-white"
-                        : isPending
+                        : isUrgent
                           ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
                           : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     }`}
                   >
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                    {label}
                     {count > 0 && (
                       <span className={`px-1.5 py-0.5 text-xs rounded-full ${
-                        filterStatus === status
+                        isSelected
                           ? "bg-blue-500 text-white"
-                          : isPending
+                          : isUrgent
                             ? "bg-yellow-200 text-yellow-800"
                             : "bg-gray-200 text-gray-600"
                       }`}>

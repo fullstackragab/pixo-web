@@ -7,7 +7,7 @@ import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import api from '@/lib/api';
-import { ShortlistPricingType, ScopeApprovalStatus, ShortlistStatusString } from '@/types';
+import { ShortlistPricingType, ScopeApprovalStatus, ShortlistStatusString, PaymentStatus } from '@/types';
 import Input from '@/components/ui/Input';
 
 interface ShortlistCandidate {
@@ -67,6 +67,8 @@ interface ShortlistDetail {
   proposedPrice?: number;
   scopeNotes?: string;
   scopeProposedAt?: string;
+  // Payment status (backend-driven, read-only)
+  paymentStatus?: PaymentStatus;
   // Legacy
   pricingApprovalStatus?: ScopeApprovalStatus;
   quotedPrice?: number;
@@ -300,14 +302,22 @@ export default function ShortlistDetailPage() {
   const canProposeScope = (): boolean => {
     if (!shortlist) return false;
     const hasApprovedCandidates = shortlist.candidates && shortlist.candidates.some(c => c.adminApproved);
-    const isReadyForPricing = ['matching', 'readyforpricing', 'processing'].includes(shortlist.status.toLowerCase());
+    const allowedStatuses = ['matching', 'readyforpricing', 'processing'];
+    const isReadyForPricing = allowedStatuses.includes(shortlist.status.toLowerCase());
     return isReadyForPricing && !!hasApprovedCandidates;
   };
 
-  // Check if scope has been proposed
+  // Check if scope has been proposed (awaiting company approval or already approved)
   const isScopeProposed = (): boolean => {
     if (!shortlist) return false;
-    return shortlist.status.toLowerCase() === 'pricingrequested' ||
+    const status = shortlist.status.toLowerCase();
+    return status === 'pricingrequested' ||
+           status === 'pricingpending' ||
+           status === 'pricingapproved' ||
+           shortlist.scopeApprovalStatus === 'pending' ||
+           shortlist.scopeApprovalStatus === 'approved' ||
+           shortlist.pricingApprovalStatus === 'pending' ||
+           shortlist.pricingApprovalStatus === 'approved' ||
            shortlist.scopeProposedAt !== undefined ||
            shortlist.proposedPrice !== undefined;
   };
@@ -317,18 +327,22 @@ export default function ShortlistDetailPage() {
     switch (s) {
       case 'draft':
         return <Badge variant="default">Draft</Badge>;
+      case 'submitted':
+        return <Badge variant="primary">Submitted</Badge>;
       case 'matching':
         return <Badge variant="primary">Matching</Badge>;
       case 'readyforpricing':
         return <Badge variant="warning">Ready for Pricing</Badge>;
+      case 'pricingpending':
+        return <Badge variant="warning">Awaiting Company Approval</Badge>;
       case 'pricingrequested':
-        return <Badge variant="warning">Pricing Requested</Badge>;
+        return <Badge variant="warning">Awaiting Company Approval</Badge>;
       case 'pricingapproved':
-        return <Badge variant="success">Pricing Approved</Badge>;
+        return <Badge variant="success">Approved</Badge>;
       case 'delivered':
         return <Badge variant="success">Delivered</Badge>;
       case 'paymentcaptured':
-        return <Badge variant="success">Payment Captured</Badge>;
+        return <Badge variant="success">Complete</Badge>;
       case 'pending':
         return <Badge variant="warning">Pending</Badge>;
       case 'processing':
@@ -345,32 +359,49 @@ export default function ShortlistDetailPage() {
   const getScopeStatusBadge = (scopeStatus: ScopeApprovalStatus | undefined) => {
     switch (scopeStatus) {
       case 'approved':
-        return <Badge variant="success">Scope: Approved</Badge>;
+        return <Badge variant="success">Pricing: Approved</Badge>;
       case 'declined':
-        return <Badge variant="danger">Scope: Declined</Badge>;
+        return <Badge variant="danger">Pricing: Declined</Badge>;
       case 'pending':
-        return <Badge variant="warning">Scope: Awaiting approval</Badge>;
+        return <Badge variant="warning">Pricing: Pending</Badge>;
       default:
         return null;
     }
   };
 
-  // Check if delivery is allowed (scope must be approved and candidates must be approved)
+  const getPaymentStatusBadge = (paymentStatus: PaymentStatus | undefined) => {
+    switch (paymentStatus) {
+      case 'authorized':
+        return <Badge variant="success">Payment: Authorized</Badge>;
+      case 'captured':
+        return <Badge variant="success">Payment: Captured</Badge>;
+      case 'pendingApproval':
+        return <Badge variant="warning">Payment: Pending</Badge>;
+      case 'failed':
+        return <Badge variant="danger">Payment: Failed</Badge>;
+      case 'canceled':
+        return <Badge variant="default">Payment: Canceled</Badge>;
+      case 'released':
+        return <Badge variant="default">Payment: Released</Badge>;
+      case 'partial':
+        return <Badge variant="warning">Payment: Partial</Badge>;
+      default:
+        return null;
+    }
+  };
+
+  // Check if delivery is allowed (must have authorized payment status)
   const canDeliver = (): boolean => {
     if (!shortlist) return false;
-    const hasScopeApproval = shortlist.scopeApprovalStatus === 'approved' || shortlist.pricingApprovalStatus === 'approved';
-    const hasApprovedCandidates = shortlist.candidates && shortlist.candidates.some(c => c.adminApproved);
-    return hasScopeApproval && !!hasApprovedCandidates;
+    // Require payment to be authorized before delivery
+    return shortlist.paymentStatus === 'authorized';
   };
 
   const getDeliveryDisabledReason = (): string | null => {
     if (!shortlist) return null;
-    const hasScopeApproval = shortlist.scopeApprovalStatus === 'approved' || shortlist.pricingApprovalStatus === 'approved';
-    if (!hasScopeApproval) {
-      return 'Shortlist can be delivered once scope is approved by the company.';
-    }
-    if (!shortlist.candidates || !shortlist.candidates.some(c => c.adminApproved)) {
-      return 'At least one candidate must be approved before delivery.';
+    // Check payment authorization status
+    if (shortlist.paymentStatus !== 'authorized') {
+      return 'Awaiting pricing approval and payment authorization.';
     }
     return null;
   };
@@ -446,25 +477,31 @@ export default function ShortlistDetailPage() {
             </Link>
             <h1 className="text-2xl font-bold text-gray-900">{shortlist.roleTitle}</h1>
             {getStatusBadge(shortlist.status)}
-            {shortlist.status.toLowerCase() !== 'completed' && shortlist.status.toLowerCase() !== 'delivered' && getScopeStatusBadge(shortlist.scopeApprovalStatus || shortlist.pricingApprovalStatus)}
             {shortlist.isFollowUp && (
               <Badge variant="primary">
                 Follow-up {shortlist.followUpDiscount ? `(${shortlist.followUpDiscount}% discount)` : ''}
               </Badge>
             )}
           </div>
+          {/* Read-only status badges */}
+          {shortlist.status.toLowerCase() !== 'completed' && shortlist.status.toLowerCase() !== 'delivered' && (
+            <div className="flex items-center gap-2 mt-1 ml-8">
+              {getScopeStatusBadge(shortlist.scopeApprovalStatus || shortlist.pricingApprovalStatus)}
+              {getPaymentStatusBadge(shortlist.paymentStatus)}
+            </div>
+          )}
           <p className="text-gray-500">
             Requested by <span className="font-medium text-gray-700">{shortlist.companyName}</span> on{' '}
             {new Date(shortlist.createdAt).toLocaleDateString()}
           </p>
         </div>
         <div className="flex gap-2">
-          {(shortlist.status === 'pending' || shortlist.status === 'draft') && (
+          {(shortlist.status === 'pending' || shortlist.status === 'draft' || shortlist.status === 'submitted') && (
             <Button onClick={() => updateStatus('processing')}>
               Start Processing
             </Button>
           )}
-          {(shortlist.status === 'processing' || shortlist.status === 'matching' || shortlist.status === 'readyForPricing') && (
+          {(['processing', 'matching', 'readyforpricing', 'pricingpending', 'pricingrequested', 'pricingapproved'].includes(shortlist.status.toLowerCase())) && (
             <>
               <Button variant="outline" onClick={saveChanges} isLoading={isSaving}>
                 Save Changes
@@ -495,23 +532,6 @@ export default function ShortlistDetailPage() {
                 )}
               </div>
             </>
-          )}
-          {shortlist.status === 'pricingApproved' && (
-            <div className="relative group">
-              <Button
-                onClick={deliverShortlist}
-                disabled={!canDeliver()}
-                className={!canDeliver() ? 'opacity-50 cursor-not-allowed' : ''}
-              >
-                Deliver to Company
-              </Button>
-              {!canDeliver() && getDeliveryDisabledReason() && (
-                <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                  {getDeliveryDisabledReason()}
-                  <div className="absolute top-full right-4 border-4 border-transparent border-t-gray-900"></div>
-                </div>
-              )}
-            </div>
           )}
         </div>
       </div>
@@ -722,7 +742,7 @@ export default function ShortlistDetailPage() {
 
       {/* Scope Proposal Modal */}
       {showScopeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Propose Scope & Price</h2>
             <p className="text-sm text-gray-600 mb-6">
