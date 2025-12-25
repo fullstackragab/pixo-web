@@ -87,7 +87,20 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 sm:mb-8">Admin Dashboard</h1>
+      <div className="flex items-center justify-between mb-6 sm:mb-8">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+        {dashboard && dashboard.pendingShortlists > 0 && (
+          <Link href="/admin/shortlists?status=pending">
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2 rounded-lg hover:bg-amber-100 transition-colors">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+              </span>
+              <span className="font-medium">{dashboard.pendingShortlists} new shortlist{dashboard.pendingShortlists !== 1 ? 's' : ''}</span>
+            </div>
+          </Link>
+        )}
+      </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
