@@ -41,15 +41,16 @@ export default function CandidateDashboard() {
   };
 
   // Calculate profile completion percentage
+  // Only includes candidate-controlled items (never system-controlled like recommendations)
   const calculateCompletion = (p: CandidateProfile | null): number => {
     if (!p) return 0;
     let score = 0;
-    if (p.firstName && p.lastName) score += 15;
-    if (p.cvFileName) score += 25;
-    if (p.desiredRole) score += 15;
+    if (p.firstName && p.lastName) score += 20;
+    if (p.cvFileName) score += 30;
+    if (p.desiredRole) score += 20;
     if (p.skills && p.skills.length >= 3) score += 20;
     if (p.locationPreference || p.location) score += 10;
-    if (p.recommendationsCount > 0) score += 15;
+    // Note: profileVisible is optional, not required for 100%
     return Math.min(score, 100);
   };
 
@@ -58,11 +59,12 @@ export default function CandidateDashboard() {
   const getCompletionLabel = (percent: number): string => {
     if (percent < 40) return "Getting started";
     if (percent < 70) return "Making progress";
-    if (percent < 90) return "Almost there!";
-    return "Looking great!";
+    if (percent < 100) return "Almost complete";
+    return "Complete";
   };
 
   // Get what's missing for profile completion
+  // Only includes candidate-controlled items
   const getMissingItems = (p: CandidateProfile | null): string[] => {
     if (!p) return [];
     const missing: string[] = [];
@@ -71,7 +73,7 @@ export default function CandidateDashboard() {
     if (!p.desiredRole) missing.push("Set desired role");
     if (!p.skills || p.skills.length < 3) missing.push("Add 3+ skills");
     if (!p.locationPreference && !p.location) missing.push("Set location");
-    if (p.recommendationsCount === 0) missing.push("Get a recommendation");
+    // Note: recommendations are system-controlled, never in missing items
     return missing;
   };
 
@@ -83,8 +85,6 @@ export default function CandidateDashboard() {
     if (!p.cvFileName) return "Upload your CV to get discovered by companies";
     if (!p.skills || p.skills.length < 3)
       return "Add more skills to improve your match rate";
-    if (p.recommendationsCount === 0)
-      return "Get recommendations to stand out from other candidates";
     if (!p.profileVisible)
       return "Make your profile visible to start receiving interest";
     return "Your profile is active and visible to companies";
@@ -303,7 +303,7 @@ export default function CandidateDashboard() {
             </Card>
           </Link>
 
-          {/* Recommendations */}
+          {/* Recommendations - informational only, added by system */}
           <Card className="group hover:border-purple-200 transition-colors">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
@@ -331,7 +331,7 @@ export default function CandidateDashboard() {
                       {profile?.recommendationsCount}
                     </p>
                   ) : (
-                    <p className="text-sm text-gray-400">None yet</p>
+                    <p className="text-xs text-gray-400">Added automatically</p>
                   )}
                 </div>
               </div>

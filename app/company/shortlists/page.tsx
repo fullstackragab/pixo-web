@@ -12,15 +12,29 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import HiringLocationInput from '@/components/ui/HiringLocationInput';
 import api from '@/lib/api';
-import { ShortlistStatus, SeniorityLevel, HiringLocation, ShortlistPricingType } from '@/types';
+import { SeniorityLevel, HiringLocation, ShortlistPricingType } from '@/types';
 import Breadcrumb, { companyBreadcrumbs } from '@/components/ui/Breadcrumb';
+
+// Normalize status from backend (could be number or string)
+const normalizeStatus = (status: string | number): string => {
+  if (typeof status === 'number') {
+    const statusMap: Record<number, string> = {
+      0: 'pending',
+      1: 'processing',
+      2: 'completed',
+      3: 'cancelled'
+    };
+    return statusMap[status] || 'pending';
+  }
+  return status.toLowerCase();
+};
 
 interface ShortlistRequest {
   id: string;
   roleTitle: string;
   techStackRequired: string[];
   seniorityRequired: SeniorityLevel | null;
-  status: ShortlistStatus;
+  status: string | number;
   candidatesCount: number;
   createdAt: string;
   // Versioning fields
@@ -145,16 +159,19 @@ function CompanyShortlistsContent() {
     }
   };
 
-  const getStatusBadge = (status: ShortlistStatus) => {
-    switch (status) {
-      case ShortlistStatus.Pending:
+  const getStatusBadge = (status: string | number) => {
+    const normalized = normalizeStatus(status);
+    switch (normalized) {
+      case 'pending':
         return <Badge variant="warning">Pending</Badge>;
-      case ShortlistStatus.Processing:
+      case 'processing':
         return <Badge variant="primary">Processing</Badge>;
-      case ShortlistStatus.Completed:
-        return <Badge variant="success">Completed</Badge>;
-      case ShortlistStatus.Cancelled:
+      case 'completed':
+        return <Badge variant="success">Delivered</Badge>;
+      case 'cancelled':
         return <Badge variant="danger">Cancelled</Badge>;
+      default:
+        return <Badge variant="default">{normalized}</Badge>;
     }
   };
 

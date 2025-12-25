@@ -72,13 +72,17 @@ The frontend has been updated to handle both numeric and string enum values for 
 **Expected string values:**
 - `"pending"`
 - `"processing"`
-- `"completed"`
+- `"completed"` (displayed as "Delivered" to companies)
 - `"cancelled"`
+
+**Note:** The internal status value is `"completed"`, but the frontend displays this as **"Delivered"** to company users for clarity.
 
 **Affected endpoints:**
 - `GET /admin/shortlists`
 - `GET /admin/shortlists/:id`
 - `PUT /admin/shortlists/:id/status`
+- `GET /shortlists` (company endpoints)
+- `GET /shortlists/:id` (company endpoints)
 
 ---
 

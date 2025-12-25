@@ -10,7 +10,21 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Breadcrumb, { companyBreadcrumbs } from '@/components/ui/Breadcrumb';
 import api from '@/lib/api';
-import { CompanyProfile, ShortlistRequest, ShortlistStatus } from '@/types';
+import { CompanyProfile, ShortlistRequest } from '@/types';
+
+// Normalize status from backend (could be number or string)
+const normalizeStatus = (status: string | number): string => {
+  if (typeof status === 'number') {
+    const statusMap: Record<number, string> = {
+      0: 'pending',
+      1: 'processing',
+      2: 'completed',
+      3: 'cancelled'
+    };
+    return statusMap[status] || 'pending';
+  }
+  return status.toLowerCase();
+};
 
 export default function CompanyDashboard() {
   const { user, isLoading: authLoading } = useAuth();
@@ -41,10 +55,11 @@ export default function CompanyDashboard() {
   };
 
   // Calculate stats
-  const pendingCount = shortlists.filter(
-    s => s.status === ShortlistStatus.Pending || s.status === ShortlistStatus.Processing
-  ).length;
-  const completedShortlists = shortlists.filter(s => s.status === ShortlistStatus.Completed);
+  const pendingCount = shortlists.filter(s => {
+    const status = normalizeStatus(s.status);
+    return status === 'pending' || status === 'processing';
+  }).length;
+  const completedShortlists = shortlists.filter(s => normalizeStatus(s.status) === 'completed');
   const totalCandidatesToReview = completedShortlists.reduce((sum, s) => sum + s.candidatesCount, 0);
   const readyShortlist = completedShortlists.find(s => s.candidatesCount > 0);
 
@@ -105,14 +120,15 @@ export default function CompanyDashboard() {
 
   // Get row action based on status
   const getRowAction = (shortlist: ShortlistRequest) => {
-    if (shortlist.status === ShortlistStatus.Completed && shortlist.candidatesCount > 0) {
+    const status = normalizeStatus(shortlist.status);
+    if (status === 'completed' && shortlist.candidatesCount > 0) {
       return (
         <Link href={`/company/shortlists/${shortlist.id}`}>
           <Button size="sm">Review</Button>
         </Link>
       );
     }
-    if (shortlist.status === ShortlistStatus.Pending || shortlist.status === ShortlistStatus.Processing) {
+    if (status === 'pending' || status === 'processing') {
       return (
         <span className="text-sm text-gray-400 flex items-center gap-1.5">
           <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
@@ -127,26 +143,29 @@ export default function CompanyDashboard() {
     );
   };
 
-  const getShortlistStatusBadge = (status: ShortlistStatus) => {
-    switch (status) {
-      case ShortlistStatus.Pending:
+  const getShortlistStatusBadge = (status: string | number) => {
+    const normalized = normalizeStatus(status);
+    switch (normalized) {
+      case 'pending':
         return (
           <Badge variant="warning" className="gap-1">
             <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse" />
             Pending Review
           </Badge>
         );
-      case ShortlistStatus.Processing:
+      case 'processing':
         return (
           <Badge variant="primary" className="gap-1">
             <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
             Being Curated
           </Badge>
         );
-      case ShortlistStatus.Completed:
-        return <Badge variant="success">Ready</Badge>;
-      case ShortlistStatus.Cancelled:
+      case 'completed':
+        return <Badge variant="success">Delivered</Badge>;
+      case 'cancelled':
         return <Badge variant="default">Cancelled</Badge>;
+      default:
+        return <Badge variant="default">{normalized}</Badge>;
     }
   };
 
@@ -238,7 +257,7 @@ export default function CompanyDashboard() {
                     <tr
                       key={shortlist.id}
                       className={`group hover:bg-gray-50 transition-colors ${
-                        shortlist.status === ShortlistStatus.Completed && shortlist.candidatesCount > 0
+                        normalizeStatus(shortlist.status) === 'completed' && shortlist.candidatesCount > 0
                           ? 'bg-green-50/30'
                           : ''
                       }`}

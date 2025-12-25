@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
+import Footer from './Footer';
 
 /**
  * PageContainer - Unified layout wrapper for all Bixo pages
@@ -74,12 +75,15 @@ interface PageWrapperProps {
   /** Background color class */
   background?: 'white' | 'gray';
   className?: string;
+  /** Show footer at bottom of page (default: true for user-facing pages) */
+  showFooter?: boolean;
 }
 
 export function PageWrapper({
   children,
   background = 'gray',
-  className = ''
+  className = '',
+  showFooter = true
 }: PageWrapperProps) {
   const bgStyles = {
     white: 'bg-white',
@@ -87,8 +91,11 @@ export function PageWrapper({
   };
 
   return (
-    <div className={`min-h-screen ${bgStyles[background]} ${className}`.trim()}>
-      {children}
+    <div className={`min-h-screen flex flex-col ${bgStyles[background]} ${className}`.trim()}>
+      <div className="flex-1">
+        {children}
+      </div>
+      {showFooter && <Footer />}
     </div>
   );
 }

@@ -9,12 +9,26 @@ import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Breadcrumb, { companyBreadcrumbs } from '@/components/ui/Breadcrumb';
 import api from '@/lib/api';
-import { ShortlistStatus, ShortlistOutcome, PaymentPricingType } from '@/types';
+import { ShortlistOutcome, PaymentPricingType } from '@/types';
+
+// Normalize status from backend (could be number or string)
+const normalizeStatus = (status: string | number): string => {
+  if (typeof status === 'number') {
+    const statusMap: Record<number, string> = {
+      0: 'pending',
+      1: 'processing',
+      2: 'completed',
+      3: 'cancelled'
+    };
+    return statusMap[status] || 'pending';
+  }
+  return status.toLowerCase();
+};
 
 interface BillingHistoryItem {
   id: string;
   roleTitle: string;
-  status: ShortlistStatus;
+  status: string | number;
   createdAt: string;
   completedAt?: string;
   // Payment outcome fields (backend-driven)
@@ -23,33 +37,35 @@ interface BillingHistoryItem {
   finalPrice?: number;
 }
 
-function getStatusLabel(status: ShortlistStatus, outcome?: ShortlistOutcome): string {
-  if (status === ShortlistStatus.Completed) {
+function getStatusLabel(status: string | number, outcome?: ShortlistOutcome): string {
+  const normalized = normalizeStatus(status);
+  if (normalized === 'completed') {
     switch (outcome) {
       case 'fulfilled':
-        return 'Fulfilled';
+        return 'Delivered';
       case 'partial':
         return 'Partial Match';
       case 'no_match':
         return 'No Match';
       default:
-        return 'Completed';
+        return 'Delivered';
     }
   }
-  switch (status) {
-    case ShortlistStatus.Pending:
+  switch (normalized) {
+    case 'pending':
       return 'Pending';
-    case ShortlistStatus.Processing:
+    case 'processing':
       return 'Processing';
-    case ShortlistStatus.Cancelled:
+    case 'cancelled':
       return 'Cancelled';
     default:
-      return 'Unknown';
+      return normalized;
   }
 }
 
-function getStatusBadgeVariant(status: ShortlistStatus, outcome?: ShortlistOutcome): 'default' | 'primary' | 'success' | 'warning' | 'danger' {
-  if (status === ShortlistStatus.Completed) {
+function getStatusBadgeVariant(status: string | number, outcome?: ShortlistOutcome): 'default' | 'primary' | 'success' | 'warning' | 'danger' {
+  const normalized = normalizeStatus(status);
+  if (normalized === 'completed') {
     switch (outcome) {
       case 'fulfilled':
         return 'success';
@@ -61,12 +77,12 @@ function getStatusBadgeVariant(status: ShortlistStatus, outcome?: ShortlistOutco
         return 'success';
     }
   }
-  switch (status) {
-    case ShortlistStatus.Pending:
+  switch (normalized) {
+    case 'pending':
       return 'warning';
-    case ShortlistStatus.Processing:
+    case 'processing':
       return 'primary';
-    case ShortlistStatus.Cancelled:
+    case 'cancelled':
       return 'danger';
     default:
       return 'default';

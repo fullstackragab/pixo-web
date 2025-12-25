@@ -78,10 +78,10 @@ export default function CandidateMessagesPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
           {/* Message List */}
-          <div className="lg:col-span-1">
-            <Card>
+          <div className="lg:col-span-1 flex">
+            <Card className="flex-1 flex flex-col">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Inbox</h2>
 
               {messages.length > 0 ? (
@@ -121,14 +121,14 @@ export default function CandidateMessagesPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-center py-8">No messages yet</p>
+                <p className="text-gray-500 text-center py-8 flex-1 flex items-center justify-center">No messages yet</p>
               )}
             </Card>
           </div>
 
           {/* Message Detail */}
-          <div className="lg:col-span-2">
-            <Card>
+          <div className="lg:col-span-2 flex">
+            <Card className="flex-1 flex flex-col">
               {selectedMessage ? (
                 <div>
                   <div className="border-b border-gray-200 pb-4 mb-4">
@@ -159,7 +159,7 @@ export default function CandidateMessagesPage() {
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-12">
+                <div className="flex-1 flex flex-col items-center justify-center py-12">
                   <svg className="w-12 h-12 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>

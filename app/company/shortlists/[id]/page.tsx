@@ -122,7 +122,7 @@ export default function CompanyShortlistDetailPage() {
       case 'processing':
         return <Badge variant="primary">Being Curated</Badge>;
       case 'completed':
-        return <Badge variant="success">Ready</Badge>;
+        return <Badge variant="success">Delivered</Badge>;
       case 'cancelled':
         return <Badge variant="danger">Cancelled</Badge>;
       default:

@@ -108,7 +108,7 @@ export default function CandidateOnboardPage() {
     <PageWrapper>
       <Header />
 
-      <PageContainer variant="narrow" verticalPadding="lg">
+      <PageContainer variant="full" className="max-w-2xl" verticalPadding="lg">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Complete Your Profile</h1>
           <p className="text-gray-600 mt-2">Help us match you with the right opportunities</p>
