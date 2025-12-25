@@ -30,15 +30,19 @@ export default function CandidateNotificationsPage() {
   };
 
   const markAsRead = async (notificationId: string) => {
-    await api.put(`/notifications/${notificationId}/read`);
-    setNotifications(notifications.map(n =>
+    // Optimistically update UI first for immediate feedback
+    setNotifications(prev => prev.map(n =>
       n.id === notificationId ? { ...n, isRead: true } : n
     ));
+    // Then persist to backend
+    await api.put(`/notifications/${notificationId}/read`);
   };
 
   const markAllAsRead = async () => {
+    // Optimistically update UI first for immediate feedback
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    // Then persist to backend
     await api.put('/notifications/read-all');
-    setNotifications(notifications.map(n => ({ ...n, isRead: true })));
   };
 
   if (authLoading || isLoading) {
