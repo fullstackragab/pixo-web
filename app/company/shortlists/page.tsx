@@ -265,6 +265,11 @@ function CompanyShortlistsContent() {
                 />
               </div>
 
+              {/* Payment UX Copy - required per payment contract */}
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">
+                We only charge if we successfully deliver a shortlist.
+              </div>
+
               <div className="flex gap-3">
                 <Button type="submit" isLoading={isSubmitting}>Submit Request</Button>
                 <Button type="button" variant="outline" onClick={() => {

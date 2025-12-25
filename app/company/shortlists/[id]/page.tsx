@@ -10,8 +10,9 @@ import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import api from '@/lib/api';
-import { ShortlistPricingType, ShortlistMessage } from '@/types';
+import { ShortlistPricingType, ShortlistMessage, ShortlistOutcome, PaymentPricingType } from '@/types';
 import SendShortlistMessageModal from '@/components/SendShortlistMessageModal';
+import ShortlistOutcomeMessage from '@/components/ShortlistOutcomeMessage';
 import Breadcrumb, { companyBreadcrumbs } from '@/components/ui/Breadcrumb';
 
 interface ShortlistCandidate {
@@ -60,6 +61,10 @@ interface ShortlistDetail {
   newCandidatesCount?: number;
   repeatedCandidatesCount?: number;
   chain?: ShortlistChainItem[];
+  // Payment outcome fields (backend-driven, read-only)
+  shortlistOutcome?: ShortlistOutcome;
+  paymentPricingType?: PaymentPricingType;
+  finalPrice?: number;
 }
 
 export default function CompanyShortlistDetailPage() {
@@ -206,6 +211,16 @@ export default function CompanyShortlistDetailPage() {
             </Button>
           )}
         </div>
+
+        {/* Payment Outcome Message - shown when completed */}
+        {isStatusCompleted(shortlist.status) && (
+          <ShortlistOutcomeMessage
+            outcome={shortlist.shortlistOutcome}
+            pricingType={shortlist.paymentPricingType}
+            finalPrice={shortlist.finalPrice}
+            className="mb-6"
+          />
+        )}
 
         {/* Pricing Breakdown for Follow-ups */}
         {shortlist.isFollowUp && shortlist.pricePaid !== undefined && (

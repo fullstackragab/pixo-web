@@ -93,5 +93,9 @@ export const companyBreadcrumbs = {
   settings: (): BreadcrumbItem[] => [
     { label: 'Dashboard', href: '/company/dashboard' },
     { label: 'Settings' }
+  ],
+  billing: (): BreadcrumbItem[] => [
+    { label: 'Dashboard', href: '/company/dashboard' },
+    { label: 'Billing History' }
   ]
 };

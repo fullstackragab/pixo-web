@@ -82,6 +82,9 @@ export default function Header() {
                     <Link href="/company/shortlists" className="text-gray-600 hover:text-gray-900">
                       Shortlists
                     </Link>
+                    <Link href="/company/billing" className="text-gray-600 hover:text-gray-900">
+                      Billing
+                    </Link>
                     <Link href="/company/settings" className="text-gray-600 hover:text-gray-900">
                       Settings
                     </Link>
@@ -166,6 +169,13 @@ export default function Header() {
                       className="block px-3 py-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                     >
                       Shortlists
+                    </Link>
+                    <Link
+                      href="/company/billing"
+                      onClick={closeMobileMenu}
+                      className="block px-3 py-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    >
+                      Billing
                     </Link>
                     <Link
                       href="/company/settings"

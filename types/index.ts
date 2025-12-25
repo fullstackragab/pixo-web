@@ -72,6 +72,10 @@ export enum ShortlistStatus {
   Cancelled = 3
 }
 
+// Payment outcome types (read-only, backend-driven)
+export type ShortlistOutcome = 'fulfilled' | 'partial' | 'no_match';
+export type PaymentPricingType = 'full' | 'partial' | 'free';
+
 // API Response wrapper
 export interface ApiResponse<T> {
   success: boolean;
@@ -228,6 +232,10 @@ export interface ShortlistRequest {
   isFollowUp?: boolean;
   newCandidatesCount?: number;
   repeatedCandidatesCount?: number;
+  // Payment outcome fields (backend-driven, read-only)
+  shortlistOutcome?: ShortlistOutcome;
+  paymentPricingType?: PaymentPricingType;
+  finalPrice?: number;
 }
 
 export interface ShortlistCandidate {
