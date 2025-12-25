@@ -7,7 +7,7 @@ import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import api from '@/lib/api';
-import { SeniorityLevel, Availability, ShortlistPricingType } from '@/types';
+import { ShortlistPricingType } from '@/types';
 
 interface ShortlistCandidate {
   id: string;
@@ -16,8 +16,8 @@ interface ShortlistCandidate {
   lastName: string | null;
   email: string;
   desiredRole: string | null;
-  seniorityEstimate: SeniorityLevel | null;
-  availability: Availability;
+  seniorityEstimate: string | number | null;
+  availability: string | number;
   matchScore: number;
   matchReason: string | null;
   rank: number;
@@ -43,7 +43,7 @@ interface ShortlistDetail {
   companyName: string;
   roleTitle: string;
   techStackRequired?: string[];
-  seniorityRequired?: SeniorityLevel | null;
+  seniorityRequired?: string | number | null;
   locationPreference?: string | null;
   remoteAllowed?: boolean;
   additionalNotes?: string | null;
@@ -76,18 +76,34 @@ const normalizeStatus = (status: string | number): string => {
   return status.toLowerCase();
 };
 
-// Helper to normalize seniority from string to enum
-const normalizeSeniority = (seniority: string | SeniorityLevel | null | undefined): SeniorityLevel | null => {
+// Helper to normalize seniority to lowercase string
+const normalizeSeniority = (seniority: string | number | null | undefined): string | null => {
   if (seniority === null || seniority === undefined) return null;
-  if (typeof seniority === 'number') return seniority;
-  const seniorityMap: Record<string, SeniorityLevel> = {
-    'junior': SeniorityLevel.Junior,
-    'mid': SeniorityLevel.Mid,
-    'senior': SeniorityLevel.Senior,
-    'lead': SeniorityLevel.Lead,
-    'principal': SeniorityLevel.Principal
-  };
-  return seniorityMap[seniority.toLowerCase()] ?? null;
+  if (typeof seniority === 'number') {
+    const seniorityMap: Record<number, string> = {
+      0: 'junior',
+      1: 'mid',
+      2: 'senior',
+      3: 'lead',
+      4: 'principal'
+    };
+    return seniorityMap[seniority] || null;
+  }
+  return seniority.toLowerCase();
+};
+
+// Helper to normalize availability to lowercase string
+const normalizeAvailability = (availability: string | number | null | undefined): string => {
+  if (availability === null || availability === undefined) return 'open';
+  if (typeof availability === 'number') {
+    const availabilityMap: Record<number, string> = {
+      0: 'open',
+      1: 'notnow',
+      2: 'passive'
+    };
+    return availabilityMap[availability] || 'open';
+  }
+  return availability.toLowerCase().replace(/\s+/g, '');
 };
 
 // Helper to parse techStackRequired which may come as JSON string
@@ -130,11 +146,11 @@ export default function ShortlistDetailPage() {
         techStackRequired: parseTechStack(data.techStackRequired),
         seniorityRequired: normalizeSeniority(data.seniorityRequired),
         remoteAllowed: data.remoteAllowed ?? data.isRemote ?? false,
-        candidates: (data.candidates || []).map((c: ShortlistCandidate & { seniorityEstimate?: string | SeniorityLevel }) => ({
+        candidates: (data.candidates || []).map((c: ShortlistCandidate) => ({
           ...c,
           seniorityEstimate: normalizeSeniority(c.seniorityEstimate),
           skills: c.skills || [],
-          availability: c.availability ?? Availability.Open
+          availability: normalizeAvailability(c.availability)
         }))
       };
       setShortlist(normalizedData);
@@ -235,25 +251,30 @@ export default function ShortlistDetailPage() {
     }
   };
 
-  const getSeniorityLabel = (seniority: SeniorityLevel | null | undefined) => {
-    if (seniority === null || seniority === undefined) return 'Any';
-    const labels = ['Junior', 'Mid', 'Senior', 'Lead', 'Principal'];
-    return labels[seniority] || 'Any';
+  const getSeniorityLabel = (seniority: string | number | null | undefined) => {
+    const normalized = normalizeSeniority(seniority);
+    if (normalized === null) return 'Any';
+    const labelMap: Record<string, string> = {
+      'junior': 'Junior',
+      'mid': 'Mid',
+      'senior': 'Senior',
+      'lead': 'Lead',
+      'principal': 'Principal'
+    };
+    return labelMap[normalized] || normalized;
   };
 
-  const getAvailabilityBadge = (availability: Availability | undefined | null) => {
-    if (availability === undefined || availability === null) {
-      return <Badge variant="default">Unknown</Badge>;
-    }
-    switch (availability) {
-      case Availability.Open:
+  const getAvailabilityBadge = (availability: string | number | undefined | null) => {
+    const normalized = normalizeAvailability(availability);
+    switch (normalized) {
+      case 'open':
         return <Badge variant="success">Open</Badge>;
-      case Availability.Passive:
+      case 'passive':
         return <Badge variant="warning">Passive</Badge>;
-      case Availability.NotNow:
+      case 'notnow':
         return <Badge variant="default">Not Looking</Badge>;
       default:
-        return <Badge variant="default">Unknown</Badge>;
+        return <Badge variant="default">{normalized}</Badge>;
     }
   };
 

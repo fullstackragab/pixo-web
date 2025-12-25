@@ -6,7 +6,6 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import api from '@/lib/api';
-import { Availability, SeniorityLevel } from '@/types';
 
 interface AdminCandidate {
   id: string;
@@ -15,14 +14,43 @@ interface AdminCandidate {
   lastName: string | null;
   email: string;
   desiredRole: string | null;
-  availability: Availability;
-  seniorityEstimate: SeniorityLevel | null;
+  availability: string | number;
+  seniorityEstimate: string | number | null;
   profileVisible: boolean;
   skillsCount: number;
   profileViewsCount: number;
   createdAt: string;
   lastActiveAt: string;
 }
+
+// Normalize availability to lowercase string
+const normalizeAvailability = (availability: string | number): string => {
+  if (typeof availability === 'number') {
+    const availabilityMap: Record<number, string> = {
+      0: 'open',
+      1: 'notnow',
+      2: 'passive'
+    };
+    return availabilityMap[availability] || 'open';
+  }
+  return availability.toLowerCase().replace(/\s+/g, '');
+};
+
+// Normalize seniority to lowercase string
+const normalizeSeniority = (seniority: string | number | null): string | null => {
+  if (seniority === null || seniority === undefined) return null;
+  if (typeof seniority === 'number') {
+    const seniorityMap: Record<number, string> = {
+      0: 'junior',
+      1: 'mid',
+      2: 'senior',
+      3: 'lead',
+      4: 'principal'
+    };
+    return seniorityMap[seniority] || null;
+  }
+  return seniority.toLowerCase();
+};
 
 interface PaginatedResponse {
   items: AdminCandidate[];
@@ -83,21 +111,31 @@ export default function AdminCandidatesPage() {
     }
   };
 
-  const getAvailabilityBadge = (availability: Availability) => {
-    switch (availability) {
-      case Availability.Open:
+  const getAvailabilityBadge = (availability: string | number) => {
+    const normalized = normalizeAvailability(availability);
+    switch (normalized) {
+      case 'open':
         return <Badge variant="success">Open</Badge>;
-      case Availability.Passive:
+      case 'passive':
         return <Badge variant="warning">Passive</Badge>;
-      case Availability.NotNow:
+      case 'notnow':
         return <Badge variant="default">Not Looking</Badge>;
+      default:
+        return <Badge variant="default">{normalized}</Badge>;
     }
   };
 
-  const getSeniorityLabel = (seniority: SeniorityLevel | null) => {
-    if (seniority === null) return '-';
-    const labels = ['Junior', 'Mid', 'Senior', 'Lead', 'Principal'];
-    return labels[seniority] || '-';
+  const getSeniorityLabel = (seniority: string | number | null) => {
+    const normalized = normalizeSeniority(seniority);
+    if (normalized === null) return '-';
+    const labelMap: Record<string, string> = {
+      'junior': 'Junior',
+      'mid': 'Mid',
+      'senior': 'Senior',
+      'lead': 'Lead',
+      'principal': 'Principal'
+    };
+    return labelMap[normalized] || normalized;
   };
 
   const totalPages = Math.ceil(totalCount / pageSize);

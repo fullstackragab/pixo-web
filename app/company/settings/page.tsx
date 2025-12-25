@@ -169,26 +169,28 @@ export default function CompanySettingsPage() {
           />
         </Card>
 
-        {/* Subscription Info */}
+        {/* Account & Billing */}
         <Card className="mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Subscription</h2>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-900">
-                Current Plan: <span className="font-medium">
-                  {profile?.subscriptionTier === 0 ? 'Free' :
-                   profile?.subscriptionTier === 1 ? 'Starter' :
-                   profile?.subscriptionTier === 2 ? 'Pro' : 'Unknown'}
-                </span>
-              </p>
-              <p className="text-sm text-gray-500 mt-1">
-                Messages remaining: {profile?.messagesRemaining || 0}
-              </p>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Account</h2>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-900">Messages remaining</p>
+                <p className="text-sm text-gray-500">Used for contacting shortlisted candidates</p>
+              </div>
+              <span className="text-lg font-medium text-gray-900">{profile?.messagesRemaining || 0}</span>
             </div>
-            <Button variant="outline">Upgrade Plan</Button>
+            <div className="pt-3 border-t border-gray-100">
+              <p className="text-sm text-gray-600">
+                Pricing is outcome-based. You are only charged after a shortlist is delivered.
+              </p>
+              <Link href="/company/billing" className="text-sm text-blue-600 hover:text-blue-700 mt-2 inline-block">
+                View billing history
+              </Link>
+            </div>
           </div>
           <p className="text-sm text-gray-500 mt-4">
-            Something doesn&apos;t look right?{' '}
+            Questions about your account?{' '}
             <Link href="/support" className="text-blue-600 hover:text-blue-700">
               Contact support
             </Link>

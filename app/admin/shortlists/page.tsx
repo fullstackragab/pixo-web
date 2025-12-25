@@ -7,7 +7,7 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import api from "@/lib/api";
-import { SeniorityLevel, HiringLocation } from "@/types";
+import { HiringLocation } from "@/types";
 
 interface AdminShortlist {
   id: string;
@@ -15,7 +15,7 @@ interface AdminShortlist {
   companyName: string;
   roleTitle: string;
   techStackRequired?: string[];
-  seniorityRequired?: SeniorityLevel | null;
+  seniorityRequired?: string | number | null;
   locationPreference?: string | null;
   hiringLocation?: HiringLocation;
   remoteAllowed?: boolean;
@@ -26,6 +26,17 @@ interface AdminShortlist {
   createdAt: string;
   completedAt: string | null;
 }
+
+// Normalize seniority to display label
+const normalizeSeniority = (seniority: string | number | null | undefined): string => {
+  if (seniority === null || seniority === undefined) return 'Any';
+  if (typeof seniority === 'number') {
+    const labels = ['Junior', 'Mid', 'Senior', 'Lead', 'Principal'];
+    return labels[seniority] || 'Any';
+  }
+  // Capitalize first letter if string
+  return seniority.charAt(0).toUpperCase() + seniority.slice(1).toLowerCase();
+};
 
 
 function AdminShortlistsContent() {
@@ -65,16 +76,27 @@ function AdminShortlistsContent() {
     return '';
   };
 
-  // Filter shortlists by search query (client-side for now)
+  // Filter shortlists by status and search query (client-side)
   const filteredShortlists = useMemo(() => {
-    if (!searchQuery.trim()) return shortlists;
-    const query = searchQuery.toLowerCase();
-    return shortlists.filter(s =>
-      s.companyName.toLowerCase().includes(query) ||
-      s.roleTitle.toLowerCase().includes(query) ||
-      s.id.toLowerCase().includes(query)
-    );
-  }, [shortlists, searchQuery]);
+    let filtered = shortlists;
+
+    // Filter by status
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(s => s.status === filterStatus);
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(s =>
+        s.companyName.toLowerCase().includes(query) ||
+        s.roleTitle.toLowerCase().includes(query) ||
+        s.id.toLowerCase().includes(query)
+      );
+    }
+
+    return filtered;
+  }, [shortlists, filterStatus, searchQuery]);
 
   // Calculate status counts for filter buttons
   const statusCounts = useMemo(() => {
@@ -91,29 +113,37 @@ function AdminShortlistsContent() {
     router.push(`/admin/shortlists/${shortlistId}`);
   };
 
+  // Normalize status from backend (could be number or string)
+  const normalizeStatus = (status: string | number): string => {
+    if (typeof status === 'number') {
+      const statusMap: Record<number, string> = {
+        0: 'pending',
+        1: 'processing',
+        2: 'completed',
+        3: 'cancelled'
+      };
+      return statusMap[status] || 'pending';
+    }
+    return status.toLowerCase();
+  };
+
   const loadShortlists = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
-    let url = `/admin/shortlists?page=${page}&pageSize=${pageSize}`;
-    if (filterStatus !== "all") {
-      const statusValue = {
-        pending: 0,
-        processing: 1,
-        completed: 2,
-        cancelled: 3,
-      }[filterStatus];
-      if (statusValue !== undefined) {
-        url += `&status=${statusValue}`;
-      }
-    }
+    // Always load all shortlists to get accurate counts, filter client-side
+    const url = `/admin/shortlists?page=${page}&pageSize=100`;
 
     try {
       const res = await api.get<AdminShortlist[]>(url);
       if (res.success && res.data) {
-        // Backend returns data as an array directly
-        setShortlists(res.data);
-        setTotalCount(res.data.length);
+        // Normalize status values from backend
+        const normalizedData = res.data.map(s => ({
+          ...s,
+          status: normalizeStatus(s.status)
+        }));
+        setShortlists(normalizedData);
+        setTotalCount(normalizedData.length);
       } else {
         setError(res.error || "Failed to load shortlists");
       }
@@ -122,7 +152,7 @@ function AdminShortlistsContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, pageSize, filterStatus]);
+  }, [page]);
 
   useEffect(() => {
     loadShortlists();
@@ -160,10 +190,8 @@ function AdminShortlistsContent() {
     }
   };
 
-  const getSeniorityLabel = (seniority: SeniorityLevel | null | undefined) => {
-    if (seniority === null || seniority === undefined) return "Any";
-    const labels = ["Junior", "Mid", "Senior", "Lead", "Principal"];
-    return labels[seniority] || "Any";
+  const getSeniorityLabel = (seniority: string | number | null | undefined) => {
+    return normalizeSeniority(seniority);
   };
 
   const getHiringLocationDisplay = (shortlist: AdminShortlist) => {
@@ -194,7 +222,9 @@ function AdminShortlistsContent() {
     };
   };
 
-  const totalPages = Math.ceil(totalCount / pageSize);
+  // Pagination based on filtered results
+  const totalPages = Math.ceil(filteredShortlists.length / pageSize);
+  const paginatedShortlists = filteredShortlists.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div>
@@ -215,7 +245,12 @@ function AdminShortlistsContent() {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
             Shortlist Requests
           </h1>
-          <p className="text-gray-500 mt-1 text-sm sm:text-base">{totalCount} total requests</p>
+          <p className="text-gray-500 mt-1 text-sm sm:text-base">
+            {filterStatus === 'all'
+              ? `${totalCount} total requests`
+              : `${filteredShortlists.length} ${filterStatus} (${totalCount} total)`
+            }
+          </p>
         </div>
       </div>
 
@@ -293,11 +328,11 @@ function AdminShortlistsContent() {
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           </div>
-        ) : filteredShortlists.length > 0 ? (
+        ) : paginatedShortlists.length > 0 ? (
           <>
             {/* Mobile card view */}
             <div className="lg:hidden space-y-3">
-              {filteredShortlists.map((shortlist) => {
+              {paginatedShortlists.map((shortlist) => {
                 const ageDays = getAgeDays(shortlist.createdAt);
                 const urgencyClass = getUrgencyClass(shortlist);
                 return (
@@ -396,7 +431,7 @@ function AdminShortlistsContent() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {filteredShortlists.map((shortlist) => {
+                  {paginatedShortlists.map((shortlist) => {
                     const ageDays = getAgeDays(shortlist.createdAt);
                     const urgencyClass = getUrgencyClass(shortlist);
                     const status = shortlist.status.toLowerCase();
@@ -501,7 +536,7 @@ function AdminShortlistsContent() {
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-gray-200 pt-4 mt-4">
                 <p className="text-sm text-gray-500 order-2 sm:order-1">
                   Showing {(page - 1) * pageSize + 1} to{" "}
-                  {Math.min(page * pageSize, totalCount)} of {totalCount}
+                  {Math.min(page * pageSize, filteredShortlists.length)} of {filteredShortlists.length}
                 </p>
                 <div className="flex gap-2 order-1 sm:order-2">
                   <Button
@@ -527,14 +562,22 @@ function AdminShortlistsContent() {
         ) : (
           <div className="text-center py-8">
             <p className="text-gray-500">
-              {searchQuery ? `No shortlists match "${searchQuery}"` : 'No shortlist requests found'}
+              {searchQuery
+                ? `No shortlists match "${searchQuery}"`
+                : filterStatus !== 'all'
+                  ? `No ${filterStatus} shortlists`
+                  : 'No shortlist requests found'
+              }
             </p>
-            {searchQuery && (
+            {(searchQuery || filterStatus !== 'all') && (
               <button
-                onClick={() => setSearchQuery("")}
+                onClick={() => {
+                  setSearchQuery("");
+                  setFilterStatus("all");
+                }}
                 className="mt-2 text-sm text-blue-600 hover:text-blue-700"
               >
-                Clear search
+                Clear filters
               </button>
             )}
           </div>

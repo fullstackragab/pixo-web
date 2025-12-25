@@ -142,7 +142,7 @@ export default function CompanyBillingPage() {
 
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Billing History</h1>
-          <p className="text-gray-500 mt-1">View your shortlist history and charges</p>
+          <p className="text-gray-500 mt-1">View your shortlist requests and payment status</p>
         </div>
 
         <Card>
@@ -198,7 +198,7 @@ export default function CompanyBillingPage() {
             <div className="text-center py-12">
               <p className="text-gray-500">No billing history yet</p>
               <p className="text-sm text-gray-400 mt-1">
-                Your shortlist requests and charges will appear here
+                Your shortlist requests will appear here once submitted
               </p>
             </div>
           )}

@@ -6,7 +6,6 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import api from '@/lib/api';
-import { SubscriptionTier } from '@/types';
 
 interface AdminCompany {
   id: string;
@@ -16,7 +15,7 @@ interface AdminCompany {
   industry: string | null;
   companySize: string | null;
   website: string | null;
-  subscriptionTier: SubscriptionTier;
+  subscriptionTier: string | number;
   subscriptionExpiresAt: string | null;
   messagesRemaining: number;
   shortlistsCount: number;
@@ -24,6 +23,19 @@ interface AdminCompany {
   createdAt: string;
   lastActiveAt: string;
 }
+
+// Normalize subscription tier to lowercase string
+const normalizeSubscriptionTier = (tier: string | number): string => {
+  if (typeof tier === 'number') {
+    const tierMap: Record<number, string> = {
+      0: 'free',
+      1: 'starter',
+      2: 'pro'
+    };
+    return tierMap[tier] || 'free';
+  }
+  return tier.toLowerCase();
+};
 
 interface PaginatedResponse {
   items: AdminCompany[];
@@ -52,8 +64,8 @@ export default function AdminCompaniesPage() {
       let url = `/admin/companies?page=${page}&pageSize=${pageSize}`;
       if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
       if (filterTier !== 'all') {
-        const tierValue = filterTier === 'free' ? 0 : filterTier === 'starter' ? 1 : 2;
-        url += `&tier=${tierValue}`;
+        // Send tier as string to backend
+        url += `&tier=${filterTier}`;
       }
 
       const res = await api.get<PaginatedResponse>(url);
@@ -87,14 +99,17 @@ export default function AdminCompaniesPage() {
     }
   };
 
-  const getSubscriptionBadge = (tier: SubscriptionTier) => {
-    switch (tier) {
-      case SubscriptionTier.Free:
+  const getSubscriptionBadge = (tier: string | number) => {
+    const normalizedTier = normalizeSubscriptionTier(tier);
+    switch (normalizedTier) {
+      case 'free':
         return <Badge variant="default">Free</Badge>;
-      case SubscriptionTier.Starter:
+      case 'starter':
         return <Badge variant="primary">Starter</Badge>;
-      case SubscriptionTier.Pro:
+      case 'pro':
         return <Badge variant="success">Pro</Badge>;
+      default:
+        return <Badge variant="default">{normalizedTier}</Badge>;
     }
   };
 
