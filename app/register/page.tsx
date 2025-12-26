@@ -66,7 +66,7 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <Card>
+        <Card className="w-full">
           {/* Account Type Toggle */}
           <div className="flex rounded-lg bg-gray-100 p-1 mb-6">
             <button
