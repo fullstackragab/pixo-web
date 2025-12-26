@@ -29,8 +29,11 @@ export default function LoginPage() {
   };
 
   return (
-    <PageWrapper className="flex items-center justify-center py-12">
-      <PageContainer variant="default" className="max-w-3xl space-y-8">
+    <PageWrapper className="flex items-center justify-center py-6 sm:py-12">
+      <PageContainer
+        variant="default"
+        className="max-w-md space-y-6 sm:space-y-8"
+      >
         <div className="text-center">
           <Link href="/">
             <Image
@@ -38,11 +41,11 @@ export default function LoginPage() {
               alt="Bixo"
               width={120}
               height={40}
-              className="mx-auto"
+              className="mx-auto w-24 sm:w-[120px] h-auto"
               priority
             />
           </Link>
-          <h2 className="mt-6 text-2xl font-bold text-gray-900">
+          <h2 className="mt-4 sm:mt-6 text-xl sm:text-2xl font-bold text-gray-900">
             Sign in to your account
           </h2>
           <p className="mt-2 text-sm text-gray-600">
@@ -56,8 +59,8 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <Card padding="lg">
-          <form onSubmit={handleSubmit} className="space-y-6 min-w-sm">
+        <Card padding="md">
+          <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                 {error}
