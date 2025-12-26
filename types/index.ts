@@ -26,20 +26,20 @@ export interface LocationRanking {
 export enum UserType {
   Candidate = 0,
   Company = 1,
-  Admin = 2
+  Admin = 2,
 }
 
 export enum RemotePreference {
   Remote = 0,
   Onsite = 1,
   Hybrid = 2,
-  Flexible = 3
+  Flexible = 3,
 }
 
 export enum Availability {
   Open = 0,
   NotNow = 1,
-  Passive = 2
+  Passive = 2,
 }
 
 export enum SeniorityLevel {
@@ -47,7 +47,7 @@ export enum SeniorityLevel {
   Mid = 1,
   Senior = 2,
   Lead = 3,
-  Principal = 4
+  Principal = 4,
 }
 
 export enum SkillCategory {
@@ -56,13 +56,13 @@ export enum SkillCategory {
   Tool = 2,
   Database = 3,
   Cloud = 4,
-  Other = 5
+  Other = 5,
 }
 
 export enum SubscriptionTier {
   Free = 0,
   Starter = 1,
-  Pro = 2
+  Pro = 2,
 }
 
 export enum ShortlistStatus {
@@ -73,40 +73,55 @@ export enum ShortlistStatus {
   PricingApproved = 4,
   Delivered = 5,
   PaymentCaptured = 6,
-  Cancelled = 7
+  Cancelled = 7,
 }
 
 // String values for ShortlistStatus (backend returns these)
 export type ShortlistStatusString =
-  | 'draft'
-  | 'matching'
-  | 'readyForPricing'
-  | 'pricingRequested'
-  | 'pricingApproved'
-  | 'delivered'
-  | 'paymentCaptured'
-  | 'cancelled';
+  | "draft"
+  | "matching"
+  | "readyForPricing"
+  | "pricingRequested"
+  | "pricingApproved"
+  | "delivered"
+  | "paymentCaptured"
+  | "cancelled";
 
 // Payment status for payment records
 export type PaymentStatus =
-  | 'pendingApproval'
-  | 'authorized'
-  | 'captured'
-  | 'partial'
-  | 'released'
-  | 'canceled'
-  | 'failed';
+  | "pendingApproval"
+  | "authorized"
+  | "captured"
+  | "partial"
+  | "released"
+  | "canceled"
+  | "failed";
 
 // Payment provider types
-export type PaymentProvider = 'stripe' | 'paypal' | 'usdc';
+export type PaymentProvider = "stripe" | "paypal" | "usdc";
 
-// Payment outcome types (read-only, backend-driven)
-export type ShortlistOutcome = 'fulfilled' | 'partial' | 'no_match';
-export type PaymentPricingType = 'full' | 'partial' | 'free';
+// Shortlist outcome enum (immutable once set, backend-driven)
+export enum ShortlistOutcome {
+  Pending = "pending",
+  Delivered = "delivered",
+  Partial = "partial",
+  NoMatch = "noMatch",
+  Cancelled = "cancelled",
+}
+
+// Legacy string union for backwards compatibility
+export type ShortlistOutcomeString =
+  | "pending"
+  | "delivered"
+  | "partial"
+  | "noMatch"
+  | "cancelled";
+
+export type PaymentPricingType = "full" | "partial" | "free";
 
 // Scope/Pricing approval status (read-only, backend-driven)
 // Used to gate delivery until company has approved scope
-export type ScopeApprovalStatus = 'pending' | 'approved' | 'declined';
+export type ScopeApprovalStatus = "pending" | "approved" | "declined";
 
 // Legacy alias for backwards compatibility
 export type PricingApprovalStatus = ScopeApprovalStatus;
@@ -260,7 +275,7 @@ export interface Conversation {
 }
 
 // Shortlist types
-export type ShortlistPricingType = 'new' | 'follow_up' | 'free_regen';
+export type ShortlistPricingType = "new" | "follow_up" | "free_regen";
 
 export interface ShortlistChainItem {
   id: string;
@@ -290,8 +305,10 @@ export interface ShortlistRequest {
   isFollowUp?: boolean;
   newCandidatesCount?: number;
   repeatedCandidatesCount?: number;
-  // Payment outcome fields (backend-driven, read-only)
-  shortlistOutcome?: ShortlistOutcome;
+  // Payment outcome fields (backend-driven, read-only, immutable)
+  shortlistOutcome?: ShortlistOutcome | ShortlistOutcomeString;
+  outcomeReason?: string; // Explanation when outcome is NoMatch
+  outcomeDecidedAt?: string; // Timestamp when outcome was set
   paymentPricingType?: PaymentPricingType;
   finalPrice?: number;
   // Scope approval fields (backend-driven, read-only)
@@ -361,7 +378,7 @@ export interface Notification {
 export enum SupportMessageStatus {
   New = 0,
   Read = 1,
-  Replied = 2
+  Replied = 2,
 }
 
 export interface SupportMessage {

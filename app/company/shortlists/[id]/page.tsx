@@ -73,6 +73,8 @@ interface ShortlistDetail {
   shortlistOutcome?: ShortlistOutcome;
   paymentPricingType?: PaymentPricingType;
   finalPrice?: number;
+  outcomeReason?: string; // Explanation when outcome is NoMatch
+  outcomeDecidedAt?: string;
   // Scope approval fields (backend-driven)
   scopeApprovalStatus?: ScopeApprovalStatus;
   proposedCandidates?: number;
@@ -186,9 +188,15 @@ export default function CompanyShortlistDetailPage() {
     }
   };
 
-  // Check if pricing approval is pending
-  // Show approval card when admin has proposed pricing
-  const isPricingPending =
+  // Check if this shortlist has NoMatch outcome
+  const isNoMatch = shortlist?.shortlistOutcome === 'noMatch' || 
+                    shortlist?.shortlistOutcome === 'no_match' ||
+                    (typeof shortlist?.shortlistOutcome === 'string' && 
+                     shortlist.shortlistOutcome.toLowerCase() === 'nomatch');
+
+  // Check if pricing approval is pending (but NOT if NoMatch)
+  // Don't show approval card for NoMatch outcomes
+  const isPricingPending = !isNoMatch && (
     shortlist?.scopeApprovalStatus === 'pending' ||
     shortlist?.pricingApprovalStatus === 'pending' ||
     shortlist?.status?.toLowerCase() === 'pricingrequested' ||
@@ -323,8 +331,55 @@ export default function CompanyShortlistDetailPage() {
           )}
         </div>
 
-        {/* Step 1: Pricing Approval Screen - shown when pricing is pending */}
-        {isPricingPending && (
+        {/* NoMatch Outcome Display - shown when admin marks as NoMatch */}
+        {isNoMatch && (
+          <Card className="mb-6 border-2 border-gray-300 bg-gray-50">
+            <div className="max-w-2xl mx-auto text-center">
+              <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-3">No Suitable Candidates Found</h2>
+              <p className="text-gray-700 mb-2">
+                After reviewing the role and available candidates, we're not confident we can deliver a shortlist that meets the quality bar.
+              </p>
+              {shortlist.outcomeReason && (
+                <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200 text-left">
+                  <p className="text-sm font-medium text-gray-700 mb-1">Explanation:</p>
+                  <p className="text-sm text-gray-600">{shortlist.outcomeReason}</p>
+                </div>
+              )}
+              <div className="mt-4 pt-4 border-t border-gray-300">
+                <p className="text-lg font-semibold text-gray-900">
+                  You will not be charged for this request.
+                </p>
+              </div>
+              
+              {/* Next-step options */}
+              <div className="mt-6 space-y-3">
+                <p className="text-sm font-medium text-gray-700 mb-2">Next Steps:</p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => router.push(`/company/shortlists?adjustRole=${shortlist.id}`)}
+                  >
+                    Adjust Role Requirements
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => router.push('/company/support')}
+                  >
+                    Contact Support
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Step 1: Pricing Approval Screen - shown when pricing is pending (NOT for NoMatch) (NOT for NoMatch) */}
+        {isPricingPending && !isNoMatch && (
           <Card className="mb-6 border-2 border-blue-200 bg-blue-50">
             <div className="max-w-xl mx-auto">
               <div className="text-center mb-6">
@@ -411,8 +466,8 @@ export default function CompanyShortlistDetailPage() {
           </Card>
         )}
 
-        {/* Billing Note - shown when delivered but not yet paid */}
-        {isStatusDelivered(shortlist.status) && shortlist.paymentStatus !== 'captured' && (
+        {/* Billing Note - shown when delivered but not yet paid (NOT for NoMatch) */}
+        {!isNoMatch && isStatusDelivered(shortlist.status) && shortlist.paymentStatus !== 'captured' && (
           <Card className="mb-6 bg-gray-50 border-gray-200">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
@@ -427,12 +482,13 @@ export default function CompanyShortlistDetailPage() {
           </Card>
         )}
 
-        {/* Payment Outcome Message - shown when delivered */}
+        {/* Payment Outcome Message - shown when delivered (includes NoMatch) */}
         {isStatusDelivered(shortlist.status) && (
           <ShortlistOutcomeMessage
             outcome={shortlist.shortlistOutcome}
             pricingType={shortlist.paymentPricingType}
             finalPrice={shortlist.finalPrice}
+            outcomeReason={shortlist.outcomeReason}
             className="mb-6"
           />
         )}
