@@ -1165,14 +1165,15 @@ export default function ShortlistDetailPage() {
                       : "border-gray-200"
                   }`}
                 >
-                  <div className="flex items-start justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3">
+                      {/* Mobile: Stack vertically, Desktop: Inline */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                         <span className="text-lg font-bold text-gray-400">
                           #{candidate.rank}
                         </span>
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <p className="font-medium text-gray-900">
                               {candidate.firstName && candidate.lastName
                                 ? `${candidate.firstName} ${candidate.lastName}`
@@ -1193,11 +1194,15 @@ export default function ShortlistDetailPage() {
                             {candidate.email}
                           </p>
                         </div>
+                      </div>
+
+                      {/* Badges row */}
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
                         {getAvailabilityBadge(candidate.availability)}
                         <Badge variant="primary">
                           {getSeniorityLabel(candidate.seniorityEstimate)}
                         </Badge>
-                        <div className="ml-2 px-2 py-1 bg-blue-100 rounded text-sm font-medium text-blue-700">
+                        <div className="px-2 py-1 bg-blue-100 rounded text-sm font-medium text-blue-700">
                           {candidate.matchScore}% match
                         </div>
                       </div>
@@ -1237,7 +1242,9 @@ export default function ShortlistDetailPage() {
                         </p>
                       )}
                     </div>
-                    <div className="flex items-center gap-3">
+
+                    {/* Actions: Full width on mobile, inline on desktop */}
+                    <div className="flex items-center gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-200">
                       <div className="flex items-center gap-2">
                         <label className="text-sm text-gray-500">Rank:</label>
                         <input

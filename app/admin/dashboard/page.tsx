@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
@@ -82,6 +83,7 @@ function ActionRequiredSection({ items }: { items: ActionItem[] }) {
 }
 
 export default function AdminDashboardPage() {
+  const router = useRouter();
   const [dashboard, setDashboard] = useState<AdminDashboard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -285,23 +287,22 @@ export default function AdminDashboardPage() {
             {/* Mobile card view */}
             <div className="sm:hidden space-y-3">
               {dashboard.recentShortlists.map((shortlist) => (
-                <div key={shortlist.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="font-medium text-gray-900">{shortlist.companyName}</p>
-                      <p className="text-sm text-gray-600">{shortlist.roleTitle}</p>
+                <Link key={shortlist.id} href={`/admin/shortlists/${shortlist.id}`}>
+                  <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <p className="font-medium text-gray-900">{shortlist.companyName}</p>
+                        <p className="text-sm text-gray-600">{shortlist.roleTitle}</p>
+                      </div>
+                      {getStatusBadge(shortlist.status)}
                     </div>
-                    {getStatusBadge(shortlist.status)}
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-xs text-gray-500">
+                        {new Date(shortlist.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between mt-3">
-                    <span className="text-xs text-gray-500">
-                      {new Date(shortlist.createdAt).toLocaleDateString()}
-                    </span>
-                    <Link href={`/admin/shortlists/${shortlist.id}`}>
-                      <Button variant="ghost" size="sm">Review</Button>
-                    </Link>
-                  </div>
-                </div>
+                </Link>
               ))}
             </div>
 
@@ -314,22 +315,20 @@ export default function AdminDashboardPage() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {dashboard.recentShortlists.map((shortlist) => (
-                    <tr key={shortlist.id} className="hover:bg-gray-50">
+                    <tr
+                      key={shortlist.id}
+                      className="hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => router.push(`/admin/shortlists/${shortlist.id}`)}
+                    >
                       <td className="px-4 py-3 font-medium text-gray-900">{shortlist.companyName}</td>
                       <td className="px-4 py-3 text-gray-600">{shortlist.roleTitle}</td>
                       <td className="px-4 py-3">{getStatusBadge(shortlist.status)}</td>
                       <td className="px-4 py-3 text-gray-500 text-sm">
                         {new Date(shortlist.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Link href={`/admin/shortlists/${shortlist.id}`}>
-                          <Button variant="ghost" size="sm">Review</Button>
-                        </Link>
                       </td>
                     </tr>
                   ))}
