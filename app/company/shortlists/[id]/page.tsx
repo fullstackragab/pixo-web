@@ -1,16 +1,26 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { useAuth } from '@/contexts/AuthContext';
-import Header from '@/components/layout/Header';
-import CapabilitiesDisplay from '@/components/CapabilitiesDisplay';
-import api from '@/lib/api';
-import { deriveCapabilities } from '@/lib/capabilities';
-import { CandidateRecommendationsSummary, CompanyRecommendation, Capabilities } from '@/types';
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
+import Header from "@/components/layout/Header";
+import CapabilitiesDisplay from "@/components/CapabilitiesDisplay";
+import api from "@/lib/api";
+import { deriveCapabilities } from "@/lib/capabilities";
+import {
+  CandidateRecommendationsSummary,
+  CompanyRecommendation,
+  Capabilities,
+} from "@/types";
 
-type ShortlistState = 'searching' | 'pricing-ready' | 'awaiting-approval' | 'delivered' | 'no-match';
+type ShortlistState =
+  | "searching"
+  | "pricing-ready"
+  | "awaiting-approval"
+  | "delivered"
+  | "no-match";
+type CandidateTab = "interested" | "no-response" | "declined";
 
 interface ShortlistCandidate {
   candidateId: string;
@@ -28,8 +38,19 @@ interface ShortlistCandidate {
   capabilities?: Capabilities;
   email?: string;
   // Interest response from candidate
-  interestStatus?: 'pending' | 'interested' | 'not_interested' | 'interested_later';
+  interestStatus?:
+    | "pending"
+    | "interested"
+    | "not_interested"
+    | "interested_later";
   interestRespondedAt?: string;
+}
+
+interface InterestCounts {
+  interested: number;
+  declined: number;
+  noResponse: number;
+  total: number;
 }
 
 interface ShortlistDetail {
@@ -43,6 +64,8 @@ interface ShortlistDetail {
   status: string;
   createdAt: string;
   candidates: ShortlistCandidate[];
+  interestCounts?: InterestCounts;
+  maxCandidates?: number;
   proposedPrice?: number;
   proposedCandidates?: number;
   shortlistOutcome?: string;
@@ -52,16 +75,17 @@ interface ShortlistDetail {
 
 function Badge({
   children,
-  variant = 'default'
+  variant = "default",
 }: {
   children: React.ReactNode;
-  variant?: 'default' | 'secondary' | 'primary';
+  variant?: "default" | "secondary" | "primary";
 }) {
-  const baseClasses = 'inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-medium';
+  const baseClasses =
+    "inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-medium";
   const variantClasses = {
-    default: 'bg-accent text-accent-foreground',
-    secondary: 'bg-secondary text-secondary-foreground',
-    primary: 'bg-primary text-primary-foreground',
+    default: "bg-accent text-accent-foreground",
+    secondary: "bg-secondary text-secondary-foreground",
+    primary: "bg-primary text-primary-foreground",
   };
 
   return (
@@ -74,20 +98,22 @@ function Badge({
 function Button({
   children,
   onClick,
-  variant = 'default',
+  variant = "default",
   disabled = false,
-  className = '',
+  className = "",
 }: {
   children: React.ReactNode;
   onClick?: () => void;
-  variant?: 'default' | 'outline';
+  variant?: "default" | "outline";
   disabled?: boolean;
   className?: string;
 }) {
-  const baseClasses = 'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50';
+  const baseClasses =
+    "inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
   const variantClasses = {
-    default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-    outline: 'border border-border bg-card hover:bg-accent hover:text-accent-foreground',
+    default: "bg-primary text-primary-foreground hover:bg-primary/90",
+    outline:
+      "border border-border bg-card hover:bg-accent hover:text-accent-foreground",
   };
 
   return (
@@ -108,9 +134,12 @@ export default function CompanyShortlistDetailPage() {
   const { user, isLoading: authLoading } = useAuth();
 
   const [shortlist, setShortlist] = useState<ShortlistDetail | null>(null);
-  const [recommendations, setRecommendations] = useState<CandidateRecommendationsSummary[]>([]);
+  const [recommendations, setRecommendations] = useState<
+    CandidateRecommendationsSummary[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isApproving, setIsApproving] = useState(false);
+  const [activeTab, setActiveTab] = useState<CandidateTab>("interested");
 
   useEffect(() => {
     if (!authLoading && user && shortlistId) {
@@ -118,14 +147,33 @@ export default function CompanyShortlistDetailPage() {
     }
   }, [authLoading, user, shortlistId]);
 
+  // Set smart default tab when shortlist loads
+  useEffect(() => {
+    if (shortlist?.interestCounts) {
+      const { interested, noResponse } = shortlist.interestCounts;
+      // Default to Interested if any, otherwise No response, otherwise Declined
+      if (interested > 0) {
+        setActiveTab("interested");
+      } else if (noResponse > 0) {
+        setActiveTab("no-response");
+      } else {
+        setActiveTab("declined");
+      }
+    }
+  }, [shortlist?.interestCounts]);
+
   const loadShortlist = async () => {
     setIsLoading(true);
     const res = await api.get<ShortlistDetail>(`/shortlists/${shortlistId}`);
     if (res.success && res.data) {
       setShortlist(res.data);
       // Load recommendations for delivered shortlists
-      const status = res.data.status?.toLowerCase().replace(/_/g, '');
-      if (status === 'delivered' || status === 'completed' || status === 'paid') {
+      const status = res.data.status?.toLowerCase().replace(/_/g, "");
+      if (
+        status === "delivered" ||
+        status === "completed" ||
+        status === "paid"
+      ) {
         loadRecommendations();
       }
     }
@@ -133,14 +181,18 @@ export default function CompanyShortlistDetailPage() {
   };
 
   const loadRecommendations = async () => {
-    const res = await api.get<CandidateRecommendationsSummary[]>(`/shortlists/${shortlistId}/recommendations`);
+    const res = await api.get<CandidateRecommendationsSummary[]>(
+      `/shortlists/${shortlistId}/recommendations`
+    );
     if (res.success && res.data) {
       setRecommendations(res.data);
     }
   };
 
-  const getCandidateRecommendations = (candidateId: string): CompanyRecommendation[] => {
-    const summary = recommendations.find(r => r.candidateId === candidateId);
+  const getCandidateRecommendations = (
+    candidateId: string
+  ): CompanyRecommendation[] => {
+    const summary = recommendations.find((r) => r.candidateId === candidateId);
     return summary?.recommendations || [];
   };
 
@@ -148,7 +200,7 @@ export default function CompanyShortlistDetailPage() {
     setIsApproving(true);
     try {
       const res = await api.post(`/shortlists/${shortlistId}/pricing/approve`, {
-        confirmApproval: true
+        confirmApproval: true,
       });
       if (res.success) {
         await loadShortlist();
@@ -160,23 +212,30 @@ export default function CompanyShortlistDetailPage() {
 
   const handleKeepOnFile = async () => {
     await api.post(`/shortlists/${shortlistId}/keep-on-file`);
-    router.push('/company/shortlists');
+    router.push("/company/shortlists");
   };
 
   const handleNewRequest = () => {
-    router.push('/company/shortlists/new');
+    router.push("/company/shortlists/new");
   };
 
   // Map backend status to UI state
   const getShortlistState = (shortlist: ShortlistDetail): ShortlistState => {
-    const status = shortlist.status?.toLowerCase().replace(/_/g, '');
-    const outcome = shortlist.shortlistOutcome?.toLowerCase().replace(/_/g, '');
+    const status = shortlist.status?.toLowerCase().replace(/_/g, "");
+    const outcome = shortlist.shortlistOutcome?.toLowerCase().replace(/_/g, "");
 
-    if (outcome === 'nomatch') return 'no-match';
-    if (status === 'delivered' || status === 'completed' || status === 'paid') return 'delivered';
-    if (status === 'pricingapproved' || status === 'approved') return 'awaiting-approval';
-    if (status === 'pricingrequested' || status === 'pricingpending' || status === 'readyforpricing') return 'pricing-ready';
-    return 'searching';
+    if (outcome === "nomatch") return "no-match";
+    if (status === "delivered" || status === "completed" || status === "paid")
+      return "delivered";
+    if (status === "pricingapproved" || status === "approved")
+      return "awaiting-approval";
+    if (
+      status === "pricingrequested" ||
+      status === "pricingpending" ||
+      status === "readyforpricing"
+    )
+      return "pricing-ready";
+    return "searching";
   };
 
   if (authLoading || isLoading) {
@@ -202,7 +261,8 @@ export default function CompanyShortlistDetailPage() {
   }
 
   const state = getShortlistState(shortlist);
-  const candidateCount = shortlist.proposedCandidates || shortlist.candidates.length || 3;
+  const candidateCount =
+    shortlist.proposedCandidates || shortlist.candidates.length || 3;
   const pricing = shortlist.proposedPrice || 2400;
 
   return (
@@ -210,13 +270,14 @@ export default function CompanyShortlistDetailPage() {
       <Header />
 
       <div className="max-w-3xl mx-auto px-6 py-16">
-        {state === 'searching' && (
+        {state === "searching" && (
           <div className="space-y-6">
             <Badge>Searching</Badge>
             <div>
               <h1 className="mb-3">We're curating your shortlist</h1>
               <p className="text-muted-foreground">
-                We're reviewing our candidate pool to find the best matches for your role. This typically takes 2–3 business days.
+                We're reviewing our candidate pool to find the best matches for
+                your role. This typically takes 2–3 business days.
               </p>
             </div>
             <div className="mt-8 p-6 bg-muted rounded-lg">
@@ -227,58 +288,63 @@ export default function CompanyShortlistDetailPage() {
           </div>
         )}
 
-        {state === 'pricing-ready' && (
+        {state === "pricing-ready" && (
           <div className="space-y-6">
             <Badge>Pricing ready</Badge>
             <div>
               <h1 className="mb-3">Your shortlist is ready</h1>
               <p className="text-muted-foreground mb-8">
-                We've prepared {candidateCount} candidates who meet your requirements. Review the pricing below to continue.
+                We've prepared {candidateCount} candidates who meet your
+                requirements. Review the pricing below to continue.
               </p>
 
               <div className="border border-border rounded-lg p-8 bg-card space-y-6">
                 <div className="flex items-baseline justify-between">
                   <div>
-                    <p className="text-muted-foreground mb-1">Shortlist price</p>
+                    <p className="text-muted-foreground mb-1">
+                      Shortlist price
+                    </p>
                     <p className="text-3xl text-foreground">€{pricing}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-muted-foreground">{candidateCount} candidates</p>
+                    <p className="text-sm text-muted-foreground">
+                      {candidateCount} candidates
+                    </p>
                   </div>
                 </div>
 
                 <div className="pt-4 border-t border-border">
                   <p className="text-sm text-muted-foreground">
-                    Price is per shortlist delivery. You only pay if we deliver candidates that meet our quality bar.
+                    Price is per shortlist delivery. You only pay if we deliver
+                    candidates that meet our quality bar.
                   </p>
                 </div>
               </div>
             </div>
 
-            <Button
-              onClick={handleApprove}
-              disabled={isApproving}
-            >
-              {isApproving ? 'Approving...' : 'Approve to continue'}
+            <Button onClick={handleApprove} disabled={isApproving}>
+              {isApproving ? "Approving..." : "Approve to continue"}
             </Button>
 
             {shortlist.lastEmailSentAt && (
               <div className="mt-8 p-6 bg-muted rounded-lg">
                 <p className="text-sm text-muted-foreground">
-                  Last email sent: {new Date(shortlist.lastEmailSentAt).toLocaleString()}
+                  Last email sent:{" "}
+                  {new Date(shortlist.lastEmailSentAt).toLocaleString()}
                 </p>
               </div>
             )}
           </div>
         )}
 
-        {state === 'awaiting-approval' && (
+        {state === "awaiting-approval" && (
           <div className="space-y-6">
             <Badge>Awaiting approval</Badge>
             <div>
               <h1 className="mb-3">Approval pending</h1>
               <p className="text-muted-foreground">
-                We're processing your approval. You'll be able to view candidates shortly.
+                We're processing your approval. You'll be able to view
+                candidates shortly.
               </p>
             </div>
             <div className="mt-8 p-6 bg-muted rounded-lg">
@@ -289,157 +355,320 @@ export default function CompanyShortlistDetailPage() {
           </div>
         )}
 
-        {state === 'delivered' && (
-          <div className="space-y-6">
-            <Badge variant="primary">Delivered</Badge>
-            <div>
-              <h1 className="mb-3">Your shortlist</h1>
-              <p className="text-muted-foreground mb-8">
-                {shortlist.candidates.length} candidates ready for review. Contact details are unlocked.
-              </p>
+        {state === "delivered" &&
+          (() => {
+            // Use backend-provided counts
+            const counts = shortlist.interestCounts || {
+              interested: 0,
+              declined: 0,
+              noResponse: 0,
+              total: 0,
+            };
 
-              <div className="space-y-4">
-                {shortlist.candidates
-                  .sort((a, b) => a.rank - b.rank)
-                  .map((candidate) => {
-                    const skills = candidate.skills || candidate.topSkills || [];
-                    const yearsExp = candidate.yearsExperience ||
-                      (candidate.seniorityEstimate === 'senior' ? 8 :
-                       candidate.seniorityEstimate === 'mid' ? 4 : 2);
-                    const candidateRecs = getCandidateRecommendations(candidate.candidateId);
+            // Filter candidates based on active tab
+            const filteredCandidates = shortlist.candidates.filter((c) => {
+              if (activeTab === "interested")
+                return c.interestStatus === "interested";
+              if (activeTab === "declined")
+                return c.interestStatus === "not_interested";
+              // no-response includes pending, interested_later, or undefined
+              return (
+                !c.interestStatus ||
+                c.interestStatus === "pending" ||
+                c.interestStatus === "interested_later"
+              );
+            });
 
-                    // Derive capabilities from skills for display
-                    const capabilities = candidate.capabilities || deriveCapabilities(skills);
+            const maxCandidates = shortlist.maxCandidates || 7;
 
-                    // Get interest status display
-                    const getInterestDisplay = () => {
-                      switch (candidate.interestStatus) {
-                        case 'interested':
-                          return { label: 'Interested', color: 'bg-green-100 text-green-800 border-green-200' };
-                        case 'not_interested':
-                          return { label: 'Declined', color: 'bg-gray-100 text-gray-600 border-gray-200' };
-                        case 'interested_later':
-                          return { label: 'Maybe Later', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
-                        default:
-                          return null;
-                      }
-                    };
-                    const interestDisplay = getInterestDisplay();
+            return (
+              <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <Badge variant="primary">Delivered</Badge>
+                </div>
+                <div>
+                  <h1 className="mb-3">{shortlist.roleTitle}</h1>
+                  <p className="text-muted-foreground mb-6">
+                    {shortlist.candidates.length} candidates ready for review.
+                    Contact details are unlocked.
+                  </p>
 
-                    return (
-                      <div
-                        key={candidate.candidateId}
-                        onClick={() => router.push(`/company/talent/${candidate.candidateId}?shortlistId=${shortlistId}`)}
-                        className={`border rounded-lg p-6 bg-card cursor-pointer hover:shadow-sm transition-all ${
-                          candidate.interestStatus === 'interested'
-                            ? 'border-green-300 hover:border-green-400'
-                            : 'border-border hover:border-primary/50'
-                        }`}
-                      >
-                        {/* Interest Status Banner */}
-                        {interestDisplay && (
-                          <div className={`-mx-6 -mt-6 mb-4 px-6 py-2 border-b ${interestDisplay.color}`}>
-                            <div className="flex items-center gap-2">
-                              {candidate.interestStatus === 'interested' && (
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                              )}
-                              <span className="text-sm font-medium">{interestDisplay.label}</span>
-                              {candidate.interestRespondedAt && (
-                                <span className="text-xs opacity-75">
-                                  · {new Date(candidate.interestRespondedAt).toLocaleDateString()}
-                                </span>
-                              )}
+                  {/* Status Tabs */}
+                  <div className="flex gap-2 mb-6 border-b border-border">
+                    <button
+                      onClick={() => setActiveTab("interested")}
+                      className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === "interested"
+                          ? "border-primary text-primary"
+                          : "border-transparent text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Interested ({counts.interested})
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("no-response")}
+                      className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === "no-response"
+                          ? "border-primary text-primary"
+                          : "border-transparent text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      No response ({counts.noResponse})
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("declined")}
+                      className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === "declined"
+                          ? "border-primary text-primary"
+                          : "border-transparent text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Declined ({counts.declined})
+                    </button>
+                  </div>
+
+                  {/* Empty State */}
+                  {filteredCandidates.length === 0 && (
+                    <div className="text-center py-12 border border-dashed border-border rounded-lg">
+                      <p className="text-muted-foreground">
+                        {activeTab === "interested" &&
+                          "No candidates have responded with interest yet."}
+                        {activeTab === "no-response" &&
+                          "All candidates have responded."}
+                        {activeTab === "declined" &&
+                          "No candidates have declined."}
+                      </p>
+                      {activeTab === "interested" && counts.noResponse > 0 && (
+                        <button
+                          onClick={() => setActiveTab("no-response")}
+                          className="mt-2 text-sm text-primary hover:underline"
+                        >
+                          View {counts.noResponse} awaiting response →
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    {filteredCandidates
+                      .sort((a, b) => a.rank - b.rank)
+                      .map((candidate) => {
+                        const skills =
+                          candidate.skills || candidate.topSkills || [];
+                        const yearsExp =
+                          candidate.yearsExperience ||
+                          (candidate.seniorityEstimate === "senior"
+                            ? 8
+                            : candidate.seniorityEstimate === "mid"
+                            ? 4
+                            : 2);
+                        const candidateRecs = getCandidateRecommendations(
+                          candidate.candidateId
+                        );
+
+                        // Derive capabilities from skills for display
+                        const capabilities =
+                          candidate.capabilities || deriveCapabilities(skills);
+
+                        // Get interest status display
+                        const getInterestDisplay = () => {
+                          switch (candidate.interestStatus) {
+                            case "interested":
+                              return {
+                                label: "Interested",
+                                color:
+                                  "bg-green-100 text-green-800 border-green-200",
+                              };
+                            case "not_interested":
+                              return {
+                                label: "Declined",
+                                color:
+                                  "bg-gray-100 text-gray-600 border-gray-200",
+                              };
+                            case "interested_later":
+                              return {
+                                label: "Maybe Later",
+                                color:
+                                  "bg-yellow-100 text-yellow-800 border-yellow-200",
+                              };
+                            default:
+                              return null;
+                          }
+                        };
+                        const interestDisplay = getInterestDisplay();
+
+                        return (
+                          <div
+                            key={candidate.candidateId}
+                            onClick={() =>
+                              router.push(
+                                `/company/talent/${candidate.candidateId}?shortlistId=${shortlistId}`
+                              )
+                            }
+                            className={`border rounded-lg p-6 bg-card cursor-pointer hover:shadow-sm transition-all ${
+                              candidate.interestStatus === "interested"
+                                ? "border-green-300 hover:border-green-400"
+                                : "border-border hover:border-primary/50"
+                            }`}
+                          >
+                            {/* Interest Status Banner */}
+                            {interestDisplay && (
+                              <div
+                                className={`-mx-6 -mt-6 mb-4 px-6 py-2 border-b ${interestDisplay.color}`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  {candidate.interestStatus ===
+                                    "interested" && (
+                                    <svg
+                                      className="w-4 h-4"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M5 13l4 4L19 7"
+                                      />
+                                    </svg>
+                                  )}
+                                  <span className="text-sm font-medium">
+                                    {interestDisplay.label}
+                                  </span>
+                                  {candidate.interestRespondedAt && (
+                                    <span className="text-xs opacity-75">
+                                      ·{" "}
+                                      {new Date(
+                                        candidate.interestRespondedAt
+                                      ).toLocaleDateString()}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex items-start justify-between mb-4">
+                              <div>
+                                <h3 className="mb-1">
+                                  {candidate.desiredRole || "Software Engineer"}
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                  {yearsExp} years experience
+                                </p>
+                              </div>
+                              <Badge variant="secondary">
+                                {candidate.availability === "open"
+                                  ? "Available"
+                                  : candidate.availability === "passive"
+                                  ? "Open"
+                                  : "Not Looking"}
+                              </Badge>
                             </div>
-                          </div>
-                        )}
 
-                        <div className="flex items-start justify-between mb-4">
-                          <div>
-                            <h3 className="mb-1">{candidate.desiredRole || 'Software Engineer'}</h3>
-                            <p className="text-sm text-muted-foreground">{yearsExp} years experience</p>
-                          </div>
-                          <Badge variant="secondary">
-                            {candidate.availability === 'open' ? 'Available' :
-                             candidate.availability === 'passive' ? 'Open' : 'Not Looking'}
-                          </Badge>
-                        </div>
+                            <div className="space-y-3 mb-4">
+                              {candidate.matchReason && (
+                                <p className="text-sm text-muted-foreground">
+                                  {candidate.matchReason}
+                                </p>
+                              )}
 
-                        <div className="space-y-3 mb-4">
-                          {candidate.matchReason && (
-                            <p className="text-sm text-muted-foreground">
-                              {candidate.matchReason}
-                            </p>
-                          )}
+                              <CapabilitiesDisplay
+                                capabilities={capabilities}
+                                showEmptyState={false}
+                              />
+                            </div>
 
-                          <CapabilitiesDisplay capabilities={capabilities} showEmptyState={false} />
-                        </div>
-
-                        {/* Recommendations Section */}
-                        {candidateRecs.length > 0 && (
-                          <div className="pt-4 border-t border-border mb-4">
-                            <p className="text-sm font-medium mb-3">Recommendations</p>
-                            <div className="space-y-3">
-                              {candidateRecs.map((rec, idx) => (
-                                <div key={idx} className="bg-muted/50 rounded-lg p-4">
-                                  <div className="flex items-start justify-between mb-2">
-                                    <div>
-                                      <p className="text-sm font-medium text-foreground">
-                                        {rec.recommenderName}
-                                        {rec.recommenderRole && `, ${rec.recommenderRole}`}
-                                        {rec.recommenderCompany && ` at ${rec.recommenderCompany}`}
-                                      </p>
-                                      <p className="text-xs text-muted-foreground">
-                                        {rec.relationship}
+                            {/* Recommendations Section */}
+                            {candidateRecs.length > 0 && (
+                              <div className="pt-4 border-t border-border mb-4">
+                                <p className="text-sm font-medium mb-3">
+                                  Recommendations
+                                </p>
+                                <div className="space-y-3">
+                                  {candidateRecs.map((rec, idx) => (
+                                    <div
+                                      key={idx}
+                                      className="bg-muted/50 rounded-lg p-4"
+                                    >
+                                      <div className="flex items-start justify-between mb-2">
+                                        <div>
+                                          <p className="text-sm font-medium text-foreground">
+                                            {rec.recommenderName}
+                                            {rec.recommenderRole &&
+                                              `, ${rec.recommenderRole}`}
+                                            {rec.recommenderCompany &&
+                                              ` at ${rec.recommenderCompany}`}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground">
+                                            {rec.relationship}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <p className="text-sm text-muted-foreground italic">
+                                        &ldquo;{rec.content}&rdquo;
                                       </p>
                                     </div>
-                                  </div>
-                                  <p className="text-sm text-muted-foreground italic">
-                                    &ldquo;{rec.content}&rdquo;
-                                  </p>
+                                  ))}
                                 </div>
-                              ))}
+                              </div>
+                            )}
+
+                            <div className="pt-4 border-t border-border flex items-center justify-between">
+                              <div>
+                                <p className="text-sm mb-1">Contact</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {candidate.email ||
+                                    `${
+                                      candidate.firstName?.toLowerCase() ||
+                                      "candidate"
+                                    }@email.com`}
+                                </p>
+                              </div>
+                              <span className="text-sm text-primary flex items-center gap-1">
+                                View full profile
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 5l7 7-7 7"
+                                  />
+                                </svg>
+                              </span>
                             </div>
                           </div>
-                        )}
-
-                        <div className="pt-4 border-t border-border flex items-center justify-between">
-                          <div>
-                            <p className="text-sm mb-1">Contact</p>
-                            <p className="text-sm text-muted-foreground">
-                              {candidate.email || `${candidate.firstName?.toLowerCase() || 'candidate'}@email.com`}
-                            </p>
-                          </div>
-                          <span className="text-sm text-primary flex items-center gap-1">
-                            View full profile
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                        );
+                      })}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            );
+          })()}
 
-        {state === 'no-match' && (
+        {state === "no-match" && (
           <div className="space-y-6">
             <Badge variant="secondary">No suitable candidates found</Badge>
             <div>
               <h1 className="mb-3">No suitable candidates found</h1>
               <p className="text-muted-foreground mb-8">
-                We couldn't confidently deliver a shortlist that met our quality bar for this role. This happens occasionally when requirements are very specific or the timing isn't right.
+                We couldn't confidently deliver a shortlist that met our quality
+                bar for this role. This happens occasionally when requirements
+                are very specific or the timing isn't right.
               </p>
 
               <div className="space-y-4">
                 <div className="border border-border rounded-lg p-6 bg-card">
                   <h4 className="mb-2">What happens next?</h4>
                   <p className="text-sm text-muted-foreground">
-                    You haven't been charged. You can submit a new request anytime, or we can keep this role on file and notify you when suitable candidates become available.
+                    You haven't been charged. You can submit a new request
+                    anytime, or we can keep this role on file and notify you
+                    when suitable candidates become available.
                   </p>
                 </div>
 
@@ -457,9 +686,7 @@ export default function CompanyShortlistDetailPage() {
                 <Button variant="outline" onClick={handleKeepOnFile}>
                   Keep on file
                 </Button>
-                <Button onClick={handleNewRequest}>
-                  Submit new request
-                </Button>
+                <Button onClick={handleNewRequest}>Submit new request</Button>
               </div>
             </div>
           </div>

@@ -18,16 +18,10 @@ export default function Header() {
     }
   }, [isAuthenticated, user?.userType]);
 
-  interface Message {
-    id: string;
-    isRead: boolean;
-  }
-
   const loadUnreadCount = async () => {
-    const res = await api.get<Message[]>('/candidates/messages');
+    const res = await api.get<{ unreadCount: number }>('/candidates/messages/unread-count');
     if (res.success && res.data) {
-      const unread = res.data.filter(m => !m.isRead).length;
-      setUnreadCount(unread);
+      setUnreadCount(res.data.unreadCount);
     }
   };
 

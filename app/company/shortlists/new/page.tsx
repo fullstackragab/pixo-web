@@ -213,6 +213,15 @@ export default function RequestShortlistPage() {
             />
           </div>
 
+          {/* Curated shortlist info */}
+          <div className="p-4 bg-muted/50 border border-border rounded-lg">
+            <p className="text-sm font-medium text-foreground">Curated shortlists are intentionally small</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              We deliver the strongest matches for your role — usually around 5 candidates.
+              In some cases, fewer candidates means a better outcome.
+            </p>
+          </div>
+
           <div className="pt-4">
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? 'Submitting...' : 'Submit request'}

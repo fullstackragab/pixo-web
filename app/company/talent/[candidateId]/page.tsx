@@ -30,7 +30,6 @@ interface CandidateDetail {
   capabilities?: Capabilities;
   recommendationsCount: number;
   lastActiveAt: string;
-  isSaved: boolean;
   cvDownloadUrl?: string;
   // Full profile fields (only returned when verified shortlist access)
   isInShortlist?: boolean;
@@ -47,7 +46,6 @@ export default function CandidateProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
   // Show full profile only if backend confirms candidate is in the shortlist
   const showFullProfile = !!shortlistId && candidate?.isInShortlist === true;
@@ -77,23 +75,6 @@ export default function CandidateProfilePage() {
       setError("An unexpected error occurred");
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const toggleSave = async () => {
-    if (!candidate || isSaving) return;
-    setIsSaving(true);
-    try {
-      if (candidate.isSaved) {
-        await api.delete(`/companies/candidates/save/${candidateId}`);
-      } else {
-        await api.post("/companies/candidates/save", { candidateId });
-      }
-      setCandidate({ ...candidate, isSaved: !candidate.isSaved });
-    } catch {
-      setError("Failed to save candidate");
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -215,85 +196,57 @@ export default function CandidateProfilePage() {
           <div className="lg:col-span-2 space-y-6">
             {/* Candidate Header Card */}
             <Card padding="lg">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  {/* Name and Role */}
-                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">
-                    {displayName}
-                  </h1>
-                  {candidate.desiredRole && (
-                    <p className="text-lg text-gray-600 mt-1 truncate">
-                      {candidate.desiredRole}
-                    </p>
-                  )}
+              <div>
+                {/* Name and Role */}
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">
+                  {displayName}
+                </h1>
+                {candidate.desiredRole && (
+                  <p className="text-lg text-gray-600 mt-1 truncate">
+                    {candidate.desiredRole}
+                  </p>
+                )}
 
-                  {/* Status Badges */}
-                  <div className="flex flex-wrap items-center gap-2 mt-4">
-                    <Badge variant={availabilityInfo.variant} size="md">
-                      {availabilityInfo.label}
+                {/* Status Badges */}
+                <div className="flex flex-wrap items-center gap-2 mt-4">
+                  <Badge variant={availabilityInfo.variant} size="md">
+                    {availabilityInfo.label}
+                  </Badge>
+                  {candidate.seniorityEstimate && (
+                    <Badge variant="default" size="md">
+                      {getSeniorityLabel(candidate.seniorityEstimate)}
                     </Badge>
-                    {candidate.seniorityEstimate && (
-                      <Badge variant="default" size="md">
-                        {getSeniorityLabel(candidate.seniorityEstimate)}
-                      </Badge>
-                    )}
-                  </div>
-
-                  {/* Quick Stats - visible in full profile mode */}
-                  {showFullProfile && (
-                    <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-gray-100 text-sm text-gray-500">
-                      {candidate.locationPreference && (
-                        <div className="flex items-center gap-1.5">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                          <span>{candidate.locationPreference}</span>
-                        </div>
-                      )}
-                      {candidate.remotePreference && (
-                        <div className="flex items-center gap-1.5">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-                          </svg>
-                          <span>{getRemoteLabel(candidate.remotePreference)}</span>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1.5">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span>Active {formatLastActive(candidate.lastActiveAt)}</span>
-                      </div>
-                    </div>
                   )}
                 </div>
 
-                {/* Save Button */}
-                <button
-                  onClick={toggleSave}
-                  disabled={isSaving}
-                  className={`p-2.5 rounded-full transition-all duration-150 flex-shrink-0 ${
-                    candidate.isSaved
-                      ? "text-blue-600 bg-blue-50 hover:bg-blue-100"
-                      : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-                  } ${isSaving ? "opacity-50 cursor-not-allowed" : ""}`}
-                  title={candidate.isSaved ? "Remove from saved" : "Save candidate"}
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill={candidate.isSaved ? "currentColor" : "none"}
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                    />
-                  </svg>
-                </button>
+                {/* Quick Stats - visible in full profile mode */}
+                {showFullProfile && (
+                  <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-gray-100 text-sm text-gray-500">
+                    {candidate.locationPreference && (
+                      <div className="flex items-center gap-1.5">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span>{candidate.locationPreference}</span>
+                      </div>
+                    )}
+                    {candidate.remotePreference && (
+                      <div className="flex items-center gap-1.5">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                        </svg>
+                        <span>{getRemoteLabel(candidate.remotePreference)}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>Active {formatLastActive(candidate.lastActiveAt)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
 

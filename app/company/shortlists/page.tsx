@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
 import PageContainer, { PageWrapper } from '@/components/layout/PageContainer';
@@ -58,6 +58,7 @@ interface ShortlistRequest {
 function CompanyShortlistsContent() {
   const { user, isLoading: authLoading } = useAuth();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [shortlists, setShortlists] = useState<ShortlistRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -304,6 +305,15 @@ function CompanyShortlistsContent() {
                 We only charge if we successfully deliver a shortlist.
               </div>
 
+              {/* Curated shortlist info */}
+              <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                <p className="text-sm font-medium text-gray-900">Curated shortlists are intentionally small</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  We deliver the strongest matches for your role — usually around 5 candidates.
+                  In some cases, fewer candidates means a better outcome.
+                </p>
+              </div>
+
               <div className="flex gap-3">
                 <Button type="submit" isLoading={isSubmitting}>Submit Request</Button>
                 <Button type="button" variant="outline" onClick={() => {
@@ -331,12 +341,15 @@ function CompanyShortlistsContent() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Candidates</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">New / Repeated</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {shortlists.map((shortlist) => (
-                    <tr key={shortlist.id} className="hover:bg-gray-50">
+                    <tr
+                      key={shortlist.id}
+                      className="hover:bg-gray-50 cursor-pointer"
+                      onClick={() => router.push(`/company/shortlists/${shortlist.id}`)}
+                    >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-gray-900">{shortlist.roleTitle}</span>
@@ -369,11 +382,6 @@ function CompanyShortlistsContent() {
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-sm">
                         {new Date(shortlist.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Link href={`/company/shortlists/${shortlist.id}`}>
-                          <Button variant="ghost" size="sm">View</Button>
-                        </Link>
                       </td>
                     </tr>
                   ))}

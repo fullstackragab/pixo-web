@@ -45,6 +45,20 @@ interface ShortlistChainItem {
   candidatesCount: number;
 }
 
+interface PricingSuggestion {
+  suggestedPrice: number;
+  factors: {
+    seniority: string | null;
+    basePrice: number;
+    candidateCount: number;
+    sizeAdjustment: number;
+    isRare: boolean;
+    rarePremium: number;
+  };
+  currentPrice: number | null;
+  isOverridden: boolean;
+}
+
 interface ShortlistDetail {
   id: string;
   companyId: string;
@@ -74,6 +88,8 @@ interface ShortlistDetail {
   proposedPrice?: number;
   scopeNotes?: string;
   scopeProposedAt?: string;
+  // Rare role flag (for initialization)
+  isRareRole?: boolean;
   // Payment status (backend-driven, read-only)
   paymentStatus?: PaymentStatus;
   // Outcome fields (backend-driven, immutable once set)
@@ -237,6 +253,9 @@ export default function ShortlistDetailPage() {
   const [proposedPrice, setProposedPrice] = useState<string>("");
   const [scopeNotes, setScopeNotes] = useState<string>("");
   const [isProposing, setIsProposing] = useState(false);
+  const [isRareRole, setIsRareRole] = useState(false);
+  const [pricingSuggestion, setPricingSuggestion] = useState<PricingSuggestion | null>(null);
+  const [isLoadingPricing, setIsLoadingPricing] = useState(false);
   const [backgroundSaveError, setBackgroundSaveError] = useState<string | null>(
     null
   );
@@ -269,6 +288,26 @@ export default function ShortlistDetailPage() {
       // Silent fail - emails are optional
     } finally {
       setIsLoadingEmails(false);
+    }
+  };
+
+  const fetchPricingSuggestion = async (rare: boolean = false) => {
+    setIsLoadingPricing(true);
+    try {
+      const res = await api.get<PricingSuggestion>(
+        `/admin/shortlists/${shortlistId}/pricing/suggest?isRare=${rare}`
+      );
+      if (res.success && res.data) {
+        setPricingSuggestion(res.data);
+        // Update proposed price to suggested price if not already set by user
+        if (!proposedPrice || proposedPrice === pricingSuggestion?.suggestedPrice.toString()) {
+          setProposedPrice(res.data.suggestedPrice.toString());
+        }
+      }
+    } catch {
+      // Silent fail - pricing suggestion is optional
+    } finally {
+      setIsLoadingPricing(false);
     }
   };
 
@@ -433,6 +472,10 @@ export default function ShortlistDetailPage() {
     setIsProposing(true);
     setError(null);
 
+    // Track if price was overridden from suggestion
+    const suggestedPrice = pricingSuggestion?.suggestedPrice;
+    const priceOverridden = suggestedPrice !== undefined && price !== suggestedPrice;
+
     // Propose the scope (candidates were saved in background when modal opened)
     const res = await api.post(
       `/admin/shortlists/${shortlistId}/scope/propose`,
@@ -440,6 +483,9 @@ export default function ShortlistDetailPage() {
         proposedCandidates: candidates,
         proposedPrice: price,
         notes: scopeNotes || undefined,
+        isRareRole,
+        suggestedPrice,
+        priceOverridden,
       }
     );
 
@@ -448,6 +494,8 @@ export default function ShortlistDetailPage() {
       setProposedCandidates("");
       setProposedPrice("");
       setScopeNotes("");
+      setIsRareRole(false);
+      setPricingSuggestion(null);
       await loadShortlist();
     } else {
       setError(res.error || "Failed to propose scope");
@@ -460,14 +508,21 @@ export default function ShortlistDetailPage() {
     const approvedCount =
       shortlist?.candidates?.filter((c) => c.adminApproved).length || 0;
     setProposedCandidates(approvedCount.toString() || "");
-    setProposedPrice(
-      shortlist?.proposedPrice?.toString() ||
-        shortlist?.quotedPrice?.toString() ||
-        "299"
-    );
     setScopeNotes(shortlist?.scopeNotes || "");
+    setIsRareRole(shortlist?.isRareRole || false);
     setBackgroundSaveError(null);
     setShowScopeModal(true);
+
+    // Fetch pricing suggestion
+    await fetchPricingSuggestion(shortlist?.isRareRole || false);
+
+    // Use existing price if set, otherwise use fetched suggestion
+    if (shortlist?.proposedPrice) {
+      setProposedPrice(shortlist.proposedPrice.toString());
+    } else if (shortlist?.quotedPrice) {
+      setProposedPrice(shortlist.quotedPrice.toString());
+    }
+    // Note: fetchPricingSuggestion will set proposedPrice to suggested if empty
 
     // Save approved candidates in background while admin reviews the modal
     if (shortlist?.candidates) {
@@ -1174,11 +1229,14 @@ export default function ShortlistDetailPage() {
                         </span>
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="font-medium text-gray-900">
+                            <Link
+                              href={`/admin/candidates/${candidate.candidateId}`}
+                              className="font-medium text-gray-900 hover:text-blue-600 hover:underline"
+                            >
                               {candidate.firstName && candidate.lastName
                                 ? `${candidate.firstName} ${candidate.lastName}`
                                 : candidate.email}
-                            </p>
+                            </Link>
                             {candidate.isNew !== undefined && (
                               <Badge
                                 variant={
@@ -1438,22 +1496,93 @@ export default function ShortlistDetailPage() {
                 placeholder="e.g., 5"
               />
 
+              {/* Rare Role Toggle */}
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="font-medium text-gray-900">Rare / Hard-to-fill role</p>
+                  <p className="text-sm text-gray-500">Adds €150 to suggested price</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newValue = !isRareRole;
+                    setIsRareRole(newValue);
+                    fetchPricingSuggestion(newValue);
+                  }}
+                  disabled={isLoadingPricing}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    isRareRole ? 'bg-blue-600' : 'bg-gray-300'
+                  } ${isLoadingPricing ? 'opacity-50' : ''}`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      isRareRole ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Pricing Suggestion */}
+              {isLoadingPricing ? (
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                  <span className="ml-2 text-sm text-gray-500">Calculating price...</span>
+                </div>
+              ) : pricingSuggestion && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-blue-800">Suggested price</span>
+                    <span className="text-lg font-bold text-blue-900">
+                      €{pricingSuggestion.suggestedPrice}
+                    </span>
+                  </div>
+                  {pricingSuggestion.factors && (
+                    <div className="text-xs text-blue-700 space-y-1">
+                      <div className="flex justify-between">
+                        <span>Base ({pricingSuggestion.factors.seniority || 'standard'})</span>
+                        <span>€{pricingSuggestion.factors.basePrice}</span>
+                      </div>
+                      {pricingSuggestion.factors.sizeAdjustment !== 0 && (
+                        <div className="flex justify-between">
+                          <span>Size adjustment ({pricingSuggestion.factors.candidateCount} candidates)</span>
+                          <span>{pricingSuggestion.factors.sizeAdjustment >= 0 ? '+' : ''}€{pricingSuggestion.factors.sizeAdjustment}</span>
+                        </div>
+                      )}
+                      {pricingSuggestion.factors.rarePremium > 0 && (
+                        <div className="flex justify-between">
+                          <span>Rare role premium</span>
+                          <span>+€{pricingSuggestion.factors.rarePremium}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <p className="text-xs text-blue-600 mt-2">
+                    Based on seniority, shortlist size{isRareRole ? ', and role complexity' : ''}.
+                  </p>
+                  {pricingSuggestion.isOverridden && pricingSuggestion.currentPrice && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      Current price (€{pricingSuggestion.currentPrice}) differs from suggestion.
+                    </p>
+                  )}
+                </div>
+              )}
+
               <Input
                 label={
                   shortlist.isFollowUp
-                    ? "Price (USD) - Apply discount"
-                    : "Price (USD)"
+                    ? "Final Price (€) - Apply discount"
+                    : "Final Price (€)"
                 }
                 id="proposedPrice"
                 type="number"
                 min="0"
-                step="0.01"
+                step="1"
                 value={proposedPrice}
                 onChange={(e) => setProposedPrice(e.target.value)}
                 placeholder={
                   shortlist.isFollowUp
-                    ? "e.g., 149.00 (discounted)"
-                    : "e.g., 299.00"
+                    ? "e.g., 149 (discounted)"
+                    : "e.g., 500"
                 }
               />
 

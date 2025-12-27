@@ -13,10 +13,18 @@ import api from "@/lib/api";
 import { deriveCapabilities } from "@/lib/capabilities";
 import { CandidateProfile, Notification, Availability, Capabilities } from "@/types";
 
+interface UnreadBannerData {
+  unreadCount: number;
+  companyCount: number;
+  bannerTitle: string | null;
+  bannerSubtitle: string | null;
+}
+
 export default function CandidateDashboard() {
   const { user, isLoading: authLoading } = useAuth();
   const [profile, setProfile] = useState<CandidateProfile | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadBanner, setUnreadBanner] = useState<UnreadBannerData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isTogglingVisibility, setIsTogglingVisibility] = useState(false);
 
@@ -28,9 +36,10 @@ export default function CandidateDashboard() {
 
   const loadData = async () => {
     setIsLoading(true);
-    const [profileRes, notificationsRes] = await Promise.all([
+    const [profileRes, notificationsRes, unreadRes] = await Promise.all([
       api.get<CandidateProfile>("/candidates/profile"),
       api.get<Notification[]>("/candidates/notifications"),
+      api.get<UnreadBannerData>("/candidates/messages/unread-count"),
     ]);
 
     if (profileRes.success && profileRes.data) {
@@ -38,6 +47,9 @@ export default function CandidateDashboard() {
     }
     if (notificationsRes.success && notificationsRes.data) {
       setNotifications(notificationsRes.data.slice(0, 5));
+    }
+    if (unreadRes.success && unreadRes.data) {
+      setUnreadBanner(unreadRes.data);
     }
     setIsLoading(false);
   };
@@ -137,7 +149,7 @@ export default function CandidateDashboard() {
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              Welcome backk{profile?.firstName ? `, ${profile.firstName}` : ""}!
+              Welcome back{profile?.firstName ? `, ${profile.firstName}` : ""}!
             </h1>
             <p className="text-gray-600 mt-1">{getNextActionHint(profile)}</p>
           </div>
@@ -293,6 +305,34 @@ export default function CandidateDashboard() {
             )}
           </Card>
         </div>
+
+        {/* New Message Callout - appears only when unread messages exist */}
+        {unreadBanner && unreadBanner.unreadCount > 0 && unreadBanner.bannerTitle && (
+          <div className="mt-6">
+            <Link href="/candidate/messages">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 hover:bg-blue-100 transition-colors cursor-pointer">
+                <div className="flex items-center gap-4">
+                  <div className="shrink-0 p-3 bg-blue-100 rounded-full">
+                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">{unreadBanner.bannerTitle}</p>
+                    {unreadBanner.bannerSubtitle && (
+                      <p className="text-sm text-gray-600 mt-0.5">{unreadBanner.bannerSubtitle}</p>
+                    )}
+                  </div>
+                  <div className="shrink-0">
+                    <span className="text-sm text-blue-600 font-medium">
+                      View {unreadBanner.unreadCount === 1 ? "message" : "messages"} →
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
           {/* Profile Summary */}

@@ -125,42 +125,6 @@ export default function CompanyTalentPage() {
     return candidate.locationPreference || null;
   };
 
-  const toggleSave = async (candidateId: string, currentlySaved: boolean) => {
-    // Optimistically update UI
-    setCandidates((prev) =>
-      prev.map((c) =>
-        c.candidateId === candidateId ? { ...c, isSaved: !currentlySaved } : c
-      )
-    );
-
-    try {
-      let res;
-      if (currentlySaved) {
-        res = await api.delete(`/companies/candidates/save/${candidateId}`);
-      } else {
-        res = await api.post("/companies/candidates/save", { candidateId });
-      }
-
-      if (!res.success) {
-        // Revert on failure
-        setCandidates((prev) =>
-          prev.map((c) =>
-            c.candidateId === candidateId ? { ...c, isSaved: currentlySaved } : c
-          )
-        );
-        setError(res.error || "Failed to save candidate");
-      }
-    } catch {
-      // Revert on error
-      setCandidates((prev) =>
-        prev.map((c) =>
-          c.candidateId === candidateId ? { ...c, isSaved: currentlySaved } : c
-        )
-      );
-      setError("Failed to save candidate");
-    }
-  };
-
   const getSeniorityLabel = (seniority: SeniorityLevel | null | undefined) => {
     if (seniority === null || seniority === undefined) return null;
     const labels = ["Junior", "Mid", "Senior", "Lead", "Principal"];
@@ -227,6 +191,11 @@ export default function CompanyTalentPage() {
                 type="text"
                 value={skillFilter}
                 onChange={(e) => setSkillFilter(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearch();
+                  }
+                }}
                 placeholder="React, Python, AWS..."
               />
             </div>
@@ -379,47 +348,17 @@ export default function CompanyTalentPage() {
               key={candidate.candidateId}
               className="hover:shadow-md transition-shadow"
             >
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h3 className="font-semibold text-gray-900">
-                    {candidate.firstName && candidate.lastName
-                      ? `${candidate.firstName} ${candidate.lastName.charAt(
-                          0
-                        )}.`
-                      : "Anonymous Candidate"}
-                  </h3>
-                  {candidate.desiredRole && (
-                    <p className="text-sm text-gray-600">
-                      {candidate.desiredRole}
-                    </p>
-                  )}
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    toggleSave(candidate.candidateId, candidate.isSaved);
-                  }}
-                  className={`p-2 rounded-full ${
-                    candidate.isSaved
-                      ? "text-blue-600"
-                      : "text-gray-400 hover:text-gray-600"
-                  }`}
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill={candidate.isSaved ? "currentColor" : "none"}
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                    />
-                  </svg>
-                </button>
+              <div className="mb-3">
+                <h3 className="font-semibold text-gray-900">
+                  {candidate.firstName && candidate.lastName
+                    ? `${candidate.firstName} ${candidate.lastName.charAt(0)}.`
+                    : "Anonymous Candidate"}
+                </h3>
+                {candidate.desiredRole && (
+                  <p className="text-sm text-gray-600">
+                    {candidate.desiredRole}
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-wrap gap-2 mb-3">

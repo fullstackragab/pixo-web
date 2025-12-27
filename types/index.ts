@@ -391,6 +391,9 @@ export interface ShortlistCandidate {
   previouslyRecommendedIn?: string | null;
   reInclusionReason?: string | null;
   statusLabel?: string;
+  // Interest response (source of truth for candidate intent)
+  interestStatus?: InterestStatus;
+  interestRespondedAt?: string;
 }
 
 export interface ShortlistDetail extends ShortlistRequest {
@@ -415,9 +418,12 @@ export interface SendMessageResponse {
 
 // Notification types
 export enum NotificationType {
+  // Candidate notifications
   Shortlisted = 'shortlisted',
   RecommendationUpdate = 'recommendation_update',
   ProfileActionRequired = 'profile_action_required',
+  // Company notifications
+  CandidateResponded = 'candidate_responded',
 }
 
 export interface Notification {

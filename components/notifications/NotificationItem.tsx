@@ -33,6 +33,13 @@ function getNotificationIcon(type: NotificationType | string) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
         </svg>
       );
+    case NotificationType.CandidateResponded:
+    case 'candidate_responded':
+      return (
+        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      );
     default:
       return (
         <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -43,7 +50,7 @@ function getNotificationIcon(type: NotificationType | string) {
 }
 
 // Get CTA config based on notification type
-function getNotificationCTA(type: NotificationType | string, requiresAction?: boolean) {
+function getNotificationCTA(type: NotificationType | string, requiresAction?: boolean, data?: string) {
   if (!requiresAction) return null;
 
   switch (type) {
@@ -53,6 +60,26 @@ function getNotificationCTA(type: NotificationType | string, requiresAction?: bo
         label: 'Update profile',
         href: '/candidate/profile',
       };
+    case NotificationType.CandidateResponded:
+    case 'candidate_responded':
+      // Parse shortlistId from data if available
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.shortlistId) {
+            return {
+              label: 'View responses',
+              href: `/company/shortlists/${parsed.shortlistId}`,
+            };
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+      return {
+        label: 'View shortlists',
+        href: '/company/shortlists',
+      };
     default:
       return null;
   }
@@ -60,7 +87,7 @@ function getNotificationCTA(type: NotificationType | string, requiresAction?: bo
 
 export default function NotificationItem({ notification, onMarkAsRead, compact = false }: NotificationItemProps) {
   const icon = getNotificationIcon(notification.type);
-  const cta = getNotificationCTA(notification.type, notification.requiresAction);
+  const cta = getNotificationCTA(notification.type, notification.requiresAction, notification.data);
 
   const handleClick = () => {
     if (!notification.isRead && onMarkAsRead) {

@@ -28,12 +28,28 @@ interface Message {
   interestRespondedAt?: string;
 }
 
+interface RespondResponse {
+  message: {
+    id: string;
+    companyName: string;
+    roleTitle: string;
+    interestStatus: string;
+    interestRespondedAt: string;
+  };
+  confirmation: string;
+}
+
 export default function CandidateMessagesPage() {
   const { user, isLoading: authLoading } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isResponding, setIsResponding] = useState(false);
+  const [responseConfirmation, setResponseConfirmation] = useState<{
+    show: boolean;
+    message: string | null;
+    status: 'interested' | 'not_interested' | 'interested_later' | null;
+  }>({ show: false, message: null, status: null });
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -51,7 +67,7 @@ export default function CandidateMessagesPage() {
   };
 
   const markAsRead = async (messageId: string) => {
-    await api.put(`/messages/${messageId}/read`);
+    await api.post(`/candidates/messages/${messageId}/read`);
     setMessages(messages.map(m =>
       m.id === messageId ? { ...m, isRead: true } : m
     ));
@@ -67,16 +83,29 @@ export default function CandidateMessagesPage() {
   const respondToMessage = async (messageId: string, interestStatus: 'interested' | 'not_interested' | 'interested_later') => {
     setIsResponding(true);
     try {
-      const res = await api.post(`/candidates/messages/${messageId}/respond`, { interestStatus });
-      if (res.success) {
-        const now = new Date().toISOString();
-        // Update local state
+      const res = await api.post<RespondResponse>(`/candidates/messages/${messageId}/respond`, { interestStatus });
+      if (res.success && res.data) {
+        const { message: responseData, confirmation } = res.data;
+        // Update local state with API response data
         setMessages(messages.map(m =>
-          m.id === messageId ? { ...m, interestStatus, interestRespondedAt: now } : m
+          m.id === messageId ? {
+            ...m,
+            interestStatus: responseData.interestStatus,
+            interestRespondedAt: responseData.interestRespondedAt
+          } : m
         ));
         if (selectedMessage?.id === messageId) {
-          setSelectedMessage({ ...selectedMessage, interestStatus, interestRespondedAt: now });
+          setSelectedMessage({
+            ...selectedMessage,
+            interestStatus: responseData.interestStatus,
+            interestRespondedAt: responseData.interestRespondedAt
+          });
         }
+        // Show confirmation from API response
+        setResponseConfirmation({ show: true, message: confirmation, status: interestStatus });
+        setTimeout(() => {
+          setResponseConfirmation({ show: false, message: null, status: null });
+        }, 4000);
       }
     } finally {
       setIsResponding(false);
@@ -116,6 +145,34 @@ export default function CandidateMessagesPage() {
   return (
     <PageWrapper>
       <Header />
+
+      {/* Response Confirmation Toast */}
+      {responseConfirmation.show && responseConfirmation.message && (
+        <div className="fixed top-20 right-4 z-50 animate-in slide-in-from-right">
+          <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-4 max-w-sm">
+            <div className="flex items-start gap-3">
+              <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                responseConfirmation.status === 'interested'
+                  ? 'bg-green-100'
+                  : responseConfirmation.status === 'interested_later'
+                  ? 'bg-yellow-100'
+                  : 'bg-gray-100'
+              }`}>
+                <svg className={`w-4 h-4 ${
+                  responseConfirmation.status === 'interested'
+                    ? 'text-green-600'
+                    : responseConfirmation.status === 'interested_later'
+                    ? 'text-yellow-600'
+                    : 'text-gray-600'
+                }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p className="text-sm text-gray-700">{responseConfirmation.message}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <PageContainer variant="default">
         <div className="mb-8">

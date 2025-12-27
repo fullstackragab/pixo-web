@@ -33,6 +33,17 @@ interface AdminCandidateDetail {
   lastActiveAt: string;
 }
 
+interface CandidateShortlist {
+  id: string;
+  roleTitle: string;
+  companyName: string;
+  status: string;
+  matchScore: number;
+  rank: number;
+  adminApproved: boolean;
+  createdAt: string;
+}
+
 const SENIORITY_OPTIONS = [
   { value: 0, label: 'Junior' },
   { value: 1, label: 'Mid' },
@@ -72,6 +83,7 @@ export default function AdminCandidateDetailPage() {
 
   const [candidate, setCandidate] = useState<AdminCandidateDetail | null>(null);
   const [recommendations, setRecommendations] = useState<CandidateRecommendation[]>([]);
+  const [shortlists, setShortlists] = useState<CandidateShortlist[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -84,9 +96,10 @@ export default function AdminCandidateDetailPage() {
       setIsLoading(true);
       setError(null);
 
-      const [candidateRes, recsRes] = await Promise.all([
+      const [candidateRes, recsRes, shortlistsRes] = await Promise.all([
         api.get<AdminCandidateDetail>(`/admin/candidates/${candidateId}`),
         api.get<CandidateRecommendation[]>(`/admin/candidates/${candidateId}/recommendations`),
+        api.get<CandidateShortlist[]>(`/admin/candidates/${candidateId}/shortlists`),
       ]);
 
       if (candidateRes.success && candidateRes.data) {
@@ -98,6 +111,10 @@ export default function AdminCandidateDetailPage() {
 
       if (recsRes.success && recsRes.data) {
         setRecommendations(recsRes.data);
+      }
+
+      if (shortlistsRes.success && shortlistsRes.data) {
+        setShortlists(shortlistsRes.data);
       }
 
       setIsLoading(false);
@@ -253,8 +270,151 @@ export default function AdminCandidateDetailPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* Sidebar - Actions (LEFT) */}
+        <div className="space-y-6 order-2 lg:order-1">
+          {/* Seniority Adjustment */}
+          <Card>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Seniority Level</h2>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-500 mb-2">Current: {getSeniorityLabel(candidate.seniorityEstimate)}</p>
+                <select
+                  value={selectedSeniority ?? ''}
+                  onChange={(e) => setSelectedSeniority(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Not set</option>
+                  {SENIORITY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+              {selectedSeniority !== normalizeSeniority(candidate.seniorityEstimate) && (
+                <Button
+                  onClick={handleUpdateSeniority}
+                  disabled={isSaving}
+                  className="w-full"
+                  variant="outline"
+                >
+                  {isSaving ? 'Saving...' : 'Update Seniority'}
+                </Button>
+              )}
+            </div>
+          </Card>
+
+          {/* Approval Actions */}
+          <Card>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Profile Status</h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Status:</span>
+                {getStatusBadge()}
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Visible:</span>
+                <span className={candidate.profileVisible ? 'text-green-600' : 'text-gray-500'}>
+                  {candidate.profileVisible ? 'Yes' : 'No'}
+                </span>
+              </div>
+
+              {candidate.profileStatus !== 'approved' && candidate.hasCv && (
+                <div className="space-y-2 pt-4 border-t">
+                  <Button onClick={handleApprove} disabled={isSaving} className="w-full">
+                    {isSaving ? 'Approving...' : 'Approve Profile'}
+                  </Button>
+                  {candidate.profileStatus !== 'rejected' && (
+                    <Button onClick={handleReject} disabled={isSaving} variant="outline" className="w-full">
+                      {isSaving ? 'Rejecting...' : 'Reject Profile'}
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {candidate.profileStatus === 'approved' && (
+                <div className="pt-4 border-t">
+                  <Button
+                    onClick={handleToggleVisibility}
+                    disabled={isSaving}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {isSaving ? 'Updating...' : candidate.profileVisible ? 'Hide Profile' : 'Show Profile'}
+                  </Button>
+                </div>
+              )}
+
+              {!candidate.hasCv && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    Cannot approve without CV. The candidate must upload their CV first.
+                  </p>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Meta Information */}
+          <Card>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Activity</h2>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Joined</span>
+                <span className="text-gray-900">{formatDate(candidate.createdAt)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Last Active</span>
+                <span className="text-gray-900">{formatDate(candidate.lastActiveAt)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Profile Views</span>
+                <span className="text-gray-900">{candidate.profileViewsCount}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Recommendations</span>
+                <span className="text-gray-900">{candidate.recommendationsCount}</span>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Main Content (RIGHT) */}
+        <div className="lg:col-span-2 space-y-6 order-1 lg:order-2">
+          {/* Shortlists Section - TOP */}
+          <Card>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Shortlists ({shortlists.length})
+            </h2>
+            {shortlists.length > 0 ? (
+              <div className="space-y-3">
+                {shortlists.map((sl) => (
+                  <Link
+                    key={sl.id}
+                    href={`/admin/shortlists/${sl.id}`}
+                    className="block p-3 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">{sl.roleTitle}</p>
+                        <p className="text-sm text-gray-500">{sl.companyName}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">#{sl.rank}</span>
+                        <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
+                          {sl.matchScore}% match
+                        </span>
+                        {sl.adminApproved && (
+                          <Badge variant="success">Approved</Badge>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-sm">Not included in any shortlists yet</p>
+            )}
+          </Card>
+
           {/* CV Section */}
           <Card>
             <h2 className="text-lg font-semibold text-gray-900 mb-4">CV / Resume</h2>
@@ -448,113 +608,6 @@ export default function AdminCandidateDetailPage() {
               </div>
             </Card>
           )}
-        </div>
-
-        {/* Sidebar - Actions */}
-        <div className="space-y-6">
-          {/* Seniority Adjustment */}
-          <Card>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Seniority Level</h2>
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-gray-500 mb-2">Current: {getSeniorityLabel(candidate.seniorityEstimate)}</p>
-                <select
-                  value={selectedSeniority ?? ''}
-                  onChange={(e) => setSelectedSeniority(e.target.value ? Number(e.target.value) : null)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Not set</option>
-                  {SENIORITY_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
-              {selectedSeniority !== normalizeSeniority(candidate.seniorityEstimate) && (
-                <Button
-                  onClick={handleUpdateSeniority}
-                  disabled={isSaving}
-                  className="w-full"
-                  variant="outline"
-                >
-                  {isSaving ? 'Saving...' : 'Update Seniority'}
-                </Button>
-              )}
-            </div>
-          </Card>
-
-          {/* Approval Actions */}
-          <Card>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Profile Status</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Status:</span>
-                {getStatusBadge()}
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Visible:</span>
-                <span className={candidate.profileVisible ? 'text-green-600' : 'text-gray-500'}>
-                  {candidate.profileVisible ? 'Yes' : 'No'}
-                </span>
-              </div>
-
-              {candidate.profileStatus !== 'approved' && candidate.hasCv && (
-                <div className="space-y-2 pt-4 border-t">
-                  <Button onClick={handleApprove} disabled={isSaving} className="w-full">
-                    {isSaving ? 'Approving...' : 'Approve Profile'}
-                  </Button>
-                  {candidate.profileStatus !== 'rejected' && (
-                    <Button onClick={handleReject} disabled={isSaving} variant="outline" className="w-full">
-                      {isSaving ? 'Rejecting...' : 'Reject Profile'}
-                    </Button>
-                  )}
-                </div>
-              )}
-
-              {candidate.profileStatus === 'approved' && (
-                <div className="pt-4 border-t">
-                  <Button
-                    onClick={handleToggleVisibility}
-                    disabled={isSaving}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    {isSaving ? 'Updating...' : candidate.profileVisible ? 'Hide Profile' : 'Show Profile'}
-                  </Button>
-                </div>
-              )}
-
-              {!candidate.hasCv && (
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-sm text-yellow-800">
-                    Cannot approve without CV. The candidate must upload their CV first.
-                  </p>
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* Meta Information */}
-          <Card>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Activity</h2>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Joined</span>
-                <span className="text-gray-900">{formatDate(candidate.createdAt)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Last Active</span>
-                <span className="text-gray-900">{formatDate(candidate.lastActiveAt)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Profile Views</span>
-                <span className="text-gray-900">{candidate.profileViewsCount}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Recommendations</span>
-                <span className="text-gray-900">{candidate.recommendationsCount}</span>
-              </div>
-            </div>
-          </Card>
         </div>
       </div>
     </div>

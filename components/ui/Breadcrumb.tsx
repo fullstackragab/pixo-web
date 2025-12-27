@@ -82,10 +82,6 @@ export const companyBreadcrumbs = {
     { label: 'Shortlists', href: '/company/shortlists' },
     { label: title || 'Shortlist' }
   ],
-  saved: (): BreadcrumbItem[] => [
-    { label: 'Dashboard', href: '/company/dashboard' },
-    { label: 'Saved Candidates' }
-  ],
   messages: (): BreadcrumbItem[] => [
     { label: 'Dashboard', href: '/company/dashboard' },
     { label: 'Messages' }
