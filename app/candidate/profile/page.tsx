@@ -244,6 +244,7 @@ export default function CandidateProfilePage() {
   const [isVisible, setIsVisible] = useState(true);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [expandedRecId, setExpandedRecId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -464,11 +465,21 @@ export default function CandidateProfilePage() {
                       {getRecommendationStatusBadge(rec)}
                     </div>
 
-                    {/* Content preview for submitted recommendations */}
+                    {/* Content for submitted recommendations */}
                     {rec.isSubmitted && rec.content && (
-                      <p className="text-sm text-muted-foreground mt-2 line-clamp-3">
-                        &ldquo;{rec.content}&rdquo;
-                      </p>
+                      <div className="mt-2">
+                        <p className={`text-sm text-muted-foreground whitespace-pre-wrap ${expandedRecId !== rec.id ? 'line-clamp-3' : ''}`}>
+                          &ldquo;{rec.content}&rdquo;
+                        </p>
+                        {rec.content.length > 150 && (
+                          <button
+                            onClick={() => setExpandedRecId(expandedRecId === rec.id ? null : rec.id)}
+                            className="text-primary text-sm mt-1 hover:underline"
+                          >
+                            {expandedRecId === rec.id ? 'Show less' : 'Read full recommendation'}
+                          </button>
+                        )}
+                      </div>
                     )}
 
                     {/* Rejection reason */}

@@ -14,6 +14,17 @@ interface SendShortlistMessageModalProps {
   onSuccess?: (response: SendShortlistMessageResponse) => void;
 }
 
+// Generate the message preview that matches what the backend will send
+function getMessagePreview(): string {
+  return `Hello [Candidate],
+
+A company on Bixo has reviewed your profile and is interested in exploring a potential opportunity with you.
+
+If you are open to learning more, you can view details and respond from your Bixo dashboard.
+
+— The Bixo Team`;
+}
+
 export default function SendShortlistMessageModal({
   shortlistId,
   roleTitle,
@@ -26,6 +37,8 @@ export default function SendShortlistMessageModal({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [sentCount, setSentCount] = useState(0);
+
+  const messagePreview = getMessagePreview();
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -73,10 +86,10 @@ export default function SendShortlistMessageModal({
         />
 
         {/* Modal */}
-        <div className="relative w-full max-w-md transform rounded-lg bg-white p-6 shadow-xl transition-all">
+        <div className="relative w-full max-w-lg transform rounded-lg bg-white p-6 shadow-xl transition-all">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">
-              Send Message to Candidates
+              Message All Candidates
             </h2>
             <button
               onClick={handleClose}
@@ -95,11 +108,13 @@ export default function SendShortlistMessageModal({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <p className="text-gray-900 font-medium">Message sent to {sentCount} candidates!</p>
+              <p className="text-gray-900 font-medium">Messages sent successfully!</p>
+              <p className="text-sm text-gray-500 mt-1">{sentCount} candidates will be notified.</p>
             </div>
           ) : (
             <div>
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              {/* Shortlist info */}
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
                 <p className="text-sm text-blue-800">
                   <span className="font-medium">Shortlist:</span> {roleTitle}
                 </p>
@@ -108,8 +123,27 @@ export default function SendShortlistMessageModal({
                 </p>
               </div>
 
+              {/* Explanation */}
               <p className="text-sm text-gray-600 mb-4">
-                Send a short informational message to all candidates in this shortlist. Candidates cannot reply.
+                You are about to send the following message to all candidates. This is a standard Bixo introduction message and cannot be edited.
+              </p>
+
+              {/* Message Preview */}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-200">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Message Preview</span>
+                </div>
+                <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
+                  {messagePreview}
+                </p>
+              </div>
+
+              {/* Note about response mechanism */}
+              <p className="text-xs text-gray-500 mb-4">
+                Each candidate will receive a personalized version with their name. They can respond via their dashboard (Interested / Not Interested). You&apos;ll see their responses in your shortlist.
               </p>
 
               {error && (
@@ -133,7 +167,7 @@ export default function SendShortlistMessageModal({
                   isLoading={isSubmitting}
                   className="flex-1"
                 >
-                  Send Messages
+                  Send to All ({candidateCount})
                 </Button>
               </div>
             </div>

@@ -9,7 +9,8 @@
       "Bash(ls:*)",
       "Bash(unzip:*)",
       "Bash(find:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(git log:*)"
     ]
   }
 }

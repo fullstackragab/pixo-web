@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
@@ -68,6 +68,7 @@ interface PaginatedResponse {
 type FilterStatus = 'all' | 'pending_review' | 'approved' | 'no_cv';
 
 export default function AdminCandidatesPage() {
+  const router = useRouter();
   const [candidates, setCandidates] = useState<AdminCandidate[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
@@ -288,10 +289,11 @@ export default function AdminCandidatesPage() {
               {candidates.map((candidate) => (
                 <div
                   key={candidate.id}
-                  className={`border rounded-lg p-4 ${
+                  onClick={() => router.push(`/admin/candidates/${candidate.id}`)}
+                  className={`border rounded-lg p-4 cursor-pointer transition-colors ${
                     candidate.profileStatus === 'pending_review' && candidate.hasCv
-                      ? 'border-yellow-300 bg-yellow-50/50'
-                      : 'border-gray-200'
+                      ? 'border-yellow-300 bg-yellow-50/50 hover:bg-yellow-50'
+                      : 'border-gray-200 hover:bg-gray-50'
                   }`}
                 >
                   <div className="flex items-start justify-between mb-3">
@@ -330,16 +332,19 @@ export default function AdminCandidatesPage() {
                     </div>
                   </div>
 
-                  <div className="flex gap-2 justify-end">
-                    <Link href={`/admin/candidates/${candidate.id}`}>
-                      <Button variant="outline" size="sm">Review</Button>
-                    </Link>
-                    {candidate.hasCv && candidate.profileStatus === 'pending_review' && (
-                      <Button size="sm" onClick={() => handleApprove(candidate.id)}>
+                  {candidate.hasCv && candidate.profileStatus === 'pending_review' && (
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleApprove(candidate.id);
+                        }}
+                      >
                         Approve
                       </Button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -356,18 +361,19 @@ export default function AdminCandidatesPage() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Availability</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Skills</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joined</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {candidates.map((candidate) => (
                     <tr
                       key={candidate.id}
-                      className={
+                      onClick={() => router.push(`/admin/candidates/${candidate.id}`)}
+                      className={`cursor-pointer ${
                         candidate.profileStatus === 'pending_review' && candidate.hasCv
                           ? 'bg-yellow-50/50 hover:bg-yellow-50'
                           : 'hover:bg-gray-50'
-                      }
+                      }`}
                     >
                       <td className="px-4 py-3">
                         <div>
@@ -414,11 +420,14 @@ export default function AdminCandidatesPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
-                          <Link href={`/admin/candidates/${candidate.id}`}>
-                            <Button variant="outline" size="sm">Review</Button>
-                          </Link>
                           {candidate.hasCv && candidate.profileStatus === 'pending_review' && (
-                            <Button size="sm" onClick={() => handleApprove(candidate.id)}>
+                            <Button
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleApprove(candidate.id);
+                              }}
+                            >
                               Approve
                             </Button>
                           )}
@@ -426,7 +435,10 @@ export default function AdminCandidatesPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => toggleVisibility(candidate.id, !candidate.profileVisible)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleVisibility(candidate.id, !candidate.profileVisible);
+                              }}
                             >
                               {candidate.profileVisible ? 'Hide' : 'Show'}
                             </Button>

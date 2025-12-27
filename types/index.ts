@@ -293,6 +293,13 @@ export interface TalentSearchResult {
 }
 
 // Message types
+export enum InterestStatus {
+  Pending = 'pending',
+  Interested = 'interested',
+  NotInterested = 'not_interested',
+  InterestedLater = 'interested_later',
+}
+
 export interface Message {
   id: string;
   fromUserId: string;
@@ -303,6 +310,9 @@ export interface Message {
   content: string;
   isRead: boolean;
   createdAt: string;
+  // Interest response (for company-to-candidate messages)
+  interestStatus?: InterestStatus;
+  interestRespondedAt?: string;
 }
 
 export interface Conversation {
@@ -404,12 +414,19 @@ export interface SendMessageResponse {
 }
 
 // Notification types
+export enum NotificationType {
+  Shortlisted = 'shortlisted',
+  RecommendationUpdate = 'recommendation_update',
+  ProfileActionRequired = 'profile_action_required',
+}
+
 export interface Notification {
   id: string;
-  type: string;
+  type: NotificationType | string; // string for backwards compatibility with backend
   title: string;
   message?: string;
-  data?: string;
+  data?: string; // JSON - may contain shortlistId, companyId, etc.
+  requiresAction?: boolean;
   isRead: boolean;
   createdAt: string;
 }

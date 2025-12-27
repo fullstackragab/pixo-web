@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
 import PageContainer, { PageWrapper } from '@/components/layout/PageContainer';
 import Card from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
+import NotificationItem from '@/components/notifications/NotificationItem';
 import api from '@/lib/api';
 import { Notification } from '@/types';
 
@@ -70,49 +70,34 @@ export default function CandidateNotificationsPage() {
           {unreadCount > 0 && (
             <button
               onClick={markAllAsRead}
-              className="text-sm text-blue-600 hover:text-blue-700"
+              className="text-sm text-gray-500 hover:text-gray-700"
             >
               Mark all as read
             </button>
           )}
         </div>
 
-        <Card>
+        <Card padding="none">
           {notifications.length > 0 ? (
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-gray-100">
               {notifications.map((notification) => (
-                <div
+                <NotificationItem
                   key={notification.id}
-                  onClick={() => !notification.isRead && markAsRead(notification.id)}
-                  className={`p-4 cursor-pointer transition-colors ${
-                    notification.isRead ? 'bg-white' : 'bg-blue-50 hover:bg-blue-100'
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className={`font-medium ${notification.isRead ? 'text-gray-700' : 'text-gray-900'}`}>
-                          {notification.title}
-                        </p>
-                        {!notification.isRead && <Badge variant="primary">New</Badge>}
-                      </div>
-                      {notification.message && (
-                        <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
-                      )}
-                      <p className="text-xs text-gray-400 mt-2">
-                        {new Date(notification.createdAt).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                  notification={notification}
+                  onMarkAsRead={markAsRead}
+                />
               ))}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <svg className="w-12 h-12 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-              <p className="text-gray-500 mt-2">No notifications yet</p>
+            <div className="text-center py-16 px-6">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                </svg>
+              </div>
+              <p className="text-gray-500">
+                We&apos;ll notify you only when something meaningful happens.
+              </p>
             </div>
           )}
         </Card>

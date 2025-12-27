@@ -6,7 +6,9 @@ import Header from '@/components/layout/Header';
 import PageContainer, { PageWrapper } from '@/components/layout/PageContainer';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
 import api from '@/lib/api';
+import { InterestStatus } from '@/types';
 
 interface Message {
   id: string;
@@ -21,6 +23,9 @@ interface Message {
   shortlistId?: string;
   shortlistRoleTitle?: string;
   companyLocation?: string;
+  // Interest response
+  interestStatus?: InterestStatus | string;
+  interestRespondedAt?: string;
 }
 
 export default function CandidateMessagesPage() {
@@ -28,6 +33,7 @@ export default function CandidateMessagesPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isResponding, setIsResponding] = useState(false);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -58,6 +64,47 @@ export default function CandidateMessagesPage() {
     }
   };
 
+  const respondToMessage = async (messageId: string, interestStatus: 'interested' | 'not_interested' | 'interested_later') => {
+    setIsResponding(true);
+    try {
+      const res = await api.post(`/candidates/messages/${messageId}/respond`, { interestStatus });
+      if (res.success) {
+        const now = new Date().toISOString();
+        // Update local state
+        setMessages(messages.map(m =>
+          m.id === messageId ? { ...m, interestStatus, interestRespondedAt: now } : m
+        ));
+        if (selectedMessage?.id === messageId) {
+          setSelectedMessage({ ...selectedMessage, interestStatus, interestRespondedAt: now });
+        }
+      }
+    } finally {
+      setIsResponding(false);
+    }
+  };
+
+  const getInterestStatusBadge = (status: InterestStatus | string | undefined) => {
+    switch (status) {
+      case 'interested':
+      case InterestStatus.Interested:
+        return <Badge variant="success">Interested</Badge>;
+      case 'not_interested':
+      case InterestStatus.NotInterested:
+        return <Badge variant="default">Not Interested</Badge>;
+      case 'interested_later':
+      case InterestStatus.InterestedLater:
+        return <Badge variant="warning">Maybe Later</Badge>;
+      default:
+        return <Badge variant="warning">Pending Response</Badge>;
+    }
+  };
+
+  const hasResponded = (message: Message) => {
+    return message.interestStatus &&
+           message.interestStatus !== 'pending' &&
+           message.interestStatus !== InterestStatus.Pending;
+  };
+
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -74,7 +121,7 @@ export default function CandidateMessagesPage() {
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
           <p className="text-gray-500 mt-1">
-            You have messages from companies regarding shortlists you were added to. Messages are informational only.
+            Companies have expressed interest in your profile. Review and respond to let them know if you&apos;re interested.
           </p>
         </div>
 
@@ -114,14 +161,34 @@ export default function CandidateMessagesPage() {
                       <p className={`text-sm truncate ${message.isRead ? 'text-gray-500' : 'text-gray-700'}`}>
                         {message.subject || message.content.substring(0, 50)}
                       </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {new Date(message.createdAt).toLocaleDateString()}
-                      </p>
+                      <div className="flex items-center justify-between mt-2">
+                        <p className="text-xs text-gray-400">
+                          {new Date(message.createdAt).toLocaleDateString()}
+                        </p>
+                        {hasResponded(message) && (
+                          <span className="text-xs">
+                            {(message.interestStatus === 'interested' || message.interestStatus === InterestStatus.Interested)
+                              ? <span className="text-green-600">Interested</span>
+                              : (message.interestStatus === 'interested_later' || message.interestStatus === InterestStatus.InterestedLater)
+                              ? <span className="text-yellow-600">Maybe Later</span>
+                              : <span className="text-gray-500">Declined</span>
+                            }
+                          </span>
+                        )}
+                      </div>
                     </button>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-center py-8 flex-1 flex items-center justify-center">No messages yet</p>
+                <div className="flex-1 flex flex-col items-center justify-center py-8 text-center">
+                  <svg className="w-12 h-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                  </svg>
+                  <p className="text-gray-500">No messages yet</p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    We&apos;ll notify you when companies show interest.
+                  </p>
+                </div>
               )}
             </Card>
           </div>
@@ -130,7 +197,8 @@ export default function CandidateMessagesPage() {
           <div className="lg:col-span-2 flex">
             <Card className="flex-1 flex flex-col">
               {selectedMessage ? (
-                <div>
+                <div className="flex flex-col h-full">
+                  {/* Message Header */}
                   <div className="border-b border-gray-200 pb-4 mb-4">
                     {selectedMessage.shortlistRoleTitle && (
                       <p className="text-sm text-blue-600 mb-2">
@@ -138,7 +206,7 @@ export default function CandidateMessagesPage() {
                       </p>
                     )}
                     <h2 className="text-lg font-semibold text-gray-900">
-                      {selectedMessage.subject || 'Message from company'}
+                      {selectedMessage.subject || 'Interest from company'}
                     </h2>
                     <div className="mt-2 space-y-1">
                       <p className="text-sm text-gray-500">
@@ -154,8 +222,76 @@ export default function CandidateMessagesPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="prose prose-sm max-w-none">
-                    <p className="text-gray-700 whitespace-pre-wrap">{selectedMessage.content}</p>
+
+                  {/* Message Content */}
+                  <div className="flex-1">
+                    <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                      {selectedMessage.content}
+                    </p>
+                  </div>
+
+                  {/* Response Section */}
+                  <div className="mt-6 pt-4 border-t border-gray-200">
+                    {hasResponded(selectedMessage) ? (
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span className="font-medium text-gray-900">You responded</span>
+                          {getInterestStatusBadge(selectedMessage.interestStatus)}
+                        </div>
+                        <p className="text-sm text-gray-500">
+                          {selectedMessage.interestRespondedAt
+                            ? `Responded on ${new Date(selectedMessage.interestRespondedAt).toLocaleDateString()}`
+                            : 'The company has been notified of your response.'
+                          }
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
+                        <h3 className="font-medium text-gray-900 mb-2">
+                          Respond to this opportunity
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Let the company know if you&apos;re interested in learning more. Your response will be shared with them.
+                        </p>
+                        <div className="flex flex-wrap gap-3">
+                          <Button
+                            onClick={() => respondToMessage(selectedMessage.id, 'interested')}
+                            disabled={isResponding}
+                            className="flex items-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            I&apos;m Interested
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => respondToMessage(selectedMessage.id, 'interested_later')}
+                            disabled={isResponding}
+                            className="flex items-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Maybe Later
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => respondToMessage(selectedMessage.id, 'not_interested')}
+                            disabled={isResponding}
+                            className="flex items-center gap-2 text-gray-600"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Not Interested
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (

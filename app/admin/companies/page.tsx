@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
@@ -47,6 +47,7 @@ interface PaginatedResponse {
 }
 
 export default function AdminCompaniesPage() {
+  const router = useRouter();
   const [companies, setCompanies] = useState<AdminCompany[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -158,25 +159,33 @@ export default function AdminCompaniesPage() {
             {/* Mobile card view */}
             <div className="md:hidden space-y-4">
               {companies.map((company) => (
-                <div key={company.id} className="border border-gray-200 rounded-lg p-4">
+                <div
+                  key={company.id}
+                  onClick={() => router.push(`/admin/companies/${company.id}`)}
+                  className="border border-gray-200 rounded-lg p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                >
                   <div className="flex items-start justify-between mb-3">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-gray-900 truncate">{company.companyName}</p>
                       <p className="text-sm text-gray-600 truncate">{company.email}</p>
                       {company.website && (
-                        <a
-                          href={company.website}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <span
+                          onClick={(e) => e.stopPropagation()}
                           className="text-xs text-blue-600 hover:underline truncate block"
                         >
-                          {company.website}
-                        </a>
+                          <a
+                            href={company.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {company.website}
+                          </a>
+                        </span>
                       )}
                     </div>
                     {getSubscriptionBadge(company.subscriptionTier)}
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                  <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
                       <span className="text-gray-500">Industry:</span>
                       <span className="ml-1 text-gray-900">{company.industry || '-'}</span>
@@ -194,11 +203,6 @@ export default function AdminCompaniesPage() {
                       <span className="ml-1 text-gray-900">{company.shortlistsCount}</span>
                     </div>
                   </div>
-                  <div className="flex justify-end">
-                    <Link href={`/admin/companies/${company.id}`}>
-                      <Button variant="ghost" size="sm">View</Button>
-                    </Link>
-                  </div>
                 </div>
               ))}
             </div>
@@ -215,24 +219,29 @@ export default function AdminCompaniesPage() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expires</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Shortlists</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Saved</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {companies.map((company) => (
-                    <tr key={company.id} className="hover:bg-gray-50">
+                    <tr
+                      key={company.id}
+                      onClick={() => router.push(`/admin/companies/${company.id}`)}
+                      className="hover:bg-gray-50 cursor-pointer"
+                    >
                       <td className="px-4 py-3">
                         <div>
                           <span className="font-medium text-gray-900">{company.companyName}</span>
                           {company.website && (
-                            <a
-                              href={company.website}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block text-xs text-blue-600 hover:underline truncate max-w-[150px]"
-                            >
-                              {company.website}
-                            </a>
+                            <span onClick={(e) => e.stopPropagation()}>
+                              <a
+                                href={company.website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block text-xs text-blue-600 hover:underline truncate max-w-[150px]"
+                              >
+                                {company.website}
+                              </a>
+                            </span>
                           )}
                         </div>
                       </td>
@@ -246,11 +255,6 @@ export default function AdminCompaniesPage() {
                       </td>
                       <td className="px-4 py-3 text-gray-600">{company.shortlistsCount}</td>
                       <td className="px-4 py-3 text-gray-600">{company.savedCandidatesCount}</td>
-                      <td className="px-4 py-3">
-                        <Link href={`/admin/companies/${company.id}`}>
-                          <Button variant="ghost" size="sm">View</Button>
-                        </Link>
-                      </td>
                     </tr>
                   ))}
                 </tbody>

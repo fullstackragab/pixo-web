@@ -13,6 +13,18 @@ interface SendMessageModalProps {
   onSuccess?: (response: SendMessageResponse) => void;
 }
 
+// Generate the message preview that matches what the backend will send
+function getMessagePreview(candidateName: string): string {
+  const firstName = candidateName.split(' ')[0];
+  return `Hello ${firstName},
+
+A company on Bixo has reviewed your profile and is interested in exploring a potential opportunity with you.
+
+If you are open to learning more, you can view details and respond from your Bixo dashboard.
+
+— The Bixo Team`;
+}
+
 export default function SendMessageModal({
   candidateId,
   candidateName,
@@ -23,6 +35,8 @@ export default function SendMessageModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  const messagePreview = getMessagePreview(candidateName);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -68,10 +82,10 @@ export default function SendMessageModal({
         />
 
         {/* Modal */}
-        <div className="relative w-full max-w-md transform rounded-lg bg-white p-6 shadow-xl transition-all">
+        <div className="relative w-full max-w-lg transform rounded-lg bg-white p-6 shadow-xl transition-all">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">
-              Send Message to {candidateName}
+              Message to {candidateName}
             </h2>
             <button
               onClick={handleClose}
@@ -91,11 +105,31 @@ export default function SendMessageModal({
                 </svg>
               </div>
               <p className="text-gray-900 font-medium">Message sent successfully!</p>
+              <p className="text-sm text-gray-500 mt-1">The candidate will be notified.</p>
             </div>
           ) : (
             <div>
+              {/* Explanation */}
               <p className="text-sm text-gray-600 mb-4">
-                Send a short informational message to this candidate. Candidates cannot reply.
+                You are about to send the following message to this candidate. This is a standard Bixo introduction message and cannot be edited.
+              </p>
+
+              {/* Message Preview */}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-200">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Message Preview</span>
+                </div>
+                <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
+                  {messagePreview}
+                </p>
+              </div>
+
+              {/* Note about response mechanism */}
+              <p className="text-xs text-gray-500 mb-4">
+                By sending this message, the candidate will be able to respond via their dashboard (Interested / Not Interested). You&apos;ll see their response in your shortlist.
               </p>
 
               {error && (

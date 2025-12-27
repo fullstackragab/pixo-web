@@ -27,6 +27,9 @@ interface ShortlistCandidate {
   topSkills?: string[];
   capabilities?: Capabilities;
   email?: string;
+  // Interest response from candidate
+  interestStatus?: 'pending' | 'interested' | 'not_interested' | 'interested_later';
+  interestRespondedAt?: string;
 }
 
 interface ShortlistDetail {
@@ -308,8 +311,50 @@ export default function CompanyShortlistDetailPage() {
                     // Derive capabilities from skills for display
                     const capabilities = candidate.capabilities || deriveCapabilities(skills);
 
+                    // Get interest status display
+                    const getInterestDisplay = () => {
+                      switch (candidate.interestStatus) {
+                        case 'interested':
+                          return { label: 'Interested', color: 'bg-green-100 text-green-800 border-green-200' };
+                        case 'not_interested':
+                          return { label: 'Declined', color: 'bg-gray-100 text-gray-600 border-gray-200' };
+                        case 'interested_later':
+                          return { label: 'Maybe Later', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
+                        default:
+                          return null;
+                      }
+                    };
+                    const interestDisplay = getInterestDisplay();
+
                     return (
-                      <div key={candidate.candidateId} className="border border-border rounded-lg p-6 bg-card">
+                      <div
+                        key={candidate.candidateId}
+                        onClick={() => router.push(`/company/talent/${candidate.candidateId}?shortlistId=${shortlistId}`)}
+                        className={`border rounded-lg p-6 bg-card cursor-pointer hover:shadow-sm transition-all ${
+                          candidate.interestStatus === 'interested'
+                            ? 'border-green-300 hover:border-green-400'
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        {/* Interest Status Banner */}
+                        {interestDisplay && (
+                          <div className={`-mx-6 -mt-6 mb-4 px-6 py-2 border-b ${interestDisplay.color}`}>
+                            <div className="flex items-center gap-2">
+                              {candidate.interestStatus === 'interested' && (
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                              <span className="text-sm font-medium">{interestDisplay.label}</span>
+                              {candidate.interestRespondedAt && (
+                                <span className="text-xs opacity-75">
+                                  · {new Date(candidate.interestRespondedAt).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                         <div className="flex items-start justify-between mb-4">
                           <div>
                             <h3 className="mb-1">{candidate.desiredRole || 'Software Engineer'}</h3>
@@ -359,11 +404,19 @@ export default function CompanyShortlistDetailPage() {
                           </div>
                         )}
 
-                        <div className="pt-4 border-t border-border">
-                          <p className="text-sm mb-1">Contact</p>
-                          <p className="text-sm text-muted-foreground">
-                            {candidate.email || `${candidate.firstName?.toLowerCase() || 'candidate'}@email.com`}
-                          </p>
+                        <div className="pt-4 border-t border-border flex items-center justify-between">
+                          <div>
+                            <p className="text-sm mb-1">Contact</p>
+                            <p className="text-sm text-muted-foreground">
+                              {candidate.email || `${candidate.firstName?.toLowerCase() || 'candidate'}@email.com`}
+                            </p>
+                          </div>
+                          <span className="text-sm text-primary flex items-center gap-1">
+                            View full profile
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </span>
                         </div>
                       </div>
                     );
