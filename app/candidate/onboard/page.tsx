@@ -106,6 +106,7 @@ export default function CandidateOnboardPage() {
   const [formData, setFormData] = useState({
     cvFile: null as File | null,
     linkedinUrl: '',
+    gitHubUrl: '',
     rolePreference: '',
   });
 
@@ -158,6 +159,7 @@ export default function CandidateOnboardPage() {
       // Save onboarding data
       const res = await api.post('/candidates/onboard', {
         linkedInUrl: formData.linkedinUrl || null,
+        gitHubUrl: formData.gitHubUrl || null,
         desiredRole: formData.rolePreference || null,
         availability,
       });
@@ -262,8 +264,8 @@ export default function CandidateOnboardPage() {
                 </div>
               </div>
 
-              {/* LinkedIn - Optional, smaller visual weight */}
-              <div className="pt-4 border-t border-border">
+              {/* LinkedIn & GitHub - Optional, smaller visual weight */}
+              <div className="pt-4 border-t border-border space-y-4">
                 <div className="space-y-2">
                   <label htmlFor="linkedin" className="block text-sm font-medium text-muted-foreground">
                     LinkedIn profile URL <span className="text-xs">(optional)</span>
@@ -275,8 +277,21 @@ export default function CandidateOnboardPage() {
                     onChange={(e) => setFormData({ ...formData, linkedinUrl: e.target.value })}
                     placeholder="https://linkedin.com/in/yourprofile"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="github" className="block text-sm font-medium text-muted-foreground">
+                    GitHub profile URL <span className="text-xs">(optional)</span>
+                  </label>
+                  <Input
+                    id="github"
+                    type="url"
+                    value={formData.gitHubUrl}
+                    onChange={(e) => setFormData({ ...formData, gitHubUrl: e.target.value })}
+                    placeholder="https://github.com/yourusername"
+                  />
                   <p className="text-xs text-muted-foreground">
-                    Your LinkedIn is used for context only and won&apos;t affect your matching.
+                    Public repositories can help highlight hands-on experience for technical roles.
                   </p>
                 </div>
               </div>

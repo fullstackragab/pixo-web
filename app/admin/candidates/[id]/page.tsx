@@ -16,6 +16,9 @@ interface AdminCandidateDetail {
   lastName: string | null;
   email: string;
   linkedInUrl: string | null;
+  gitHubUrl: string | null;
+  gitHubSummary: string | null;
+  gitHubSummaryGeneratedAt: string | null;
   desiredRole: string | null;
   locationPreference: string | null;
   availability: Availability | number;
@@ -87,6 +90,7 @@ export default function AdminCandidateDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [selectedSeniority, setSelectedSeniority] = useState<number | null>(null);
 
   useEffect(() => {
@@ -179,6 +183,36 @@ export default function AdminCandidateDetailPage() {
       setError(res.error || 'Failed to update visibility');
     }
     setIsSaving(false);
+  };
+
+  const handleGenerateGitHubSummary = async () => {
+    if (!candidate || !candidate.gitHubUrl) return;
+    setIsGeneratingSummary(true);
+    setError(null);
+
+    try {
+      const res = await api.post<{
+        summary: string;
+        username: string;
+        publicRepoCount: number;
+        topLanguages: string[];
+        generatedAt: string;
+      }>(`/admin/candidates/${candidateId}/github-summary`);
+
+      if (res.success && res.data) {
+        setCandidate({
+          ...candidate,
+          gitHubSummary: res.data.summary,
+          gitHubSummaryGeneratedAt: res.data.generatedAt,
+        });
+      } else {
+        setError(res.error || 'Failed to generate GitHub summary');
+      }
+    } catch {
+      setError('Failed to generate GitHub summary');
+    } finally {
+      setIsGeneratingSummary(false);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -493,6 +527,19 @@ export default function AdminCandidateDetailPage() {
                   </a>
                 </div>
               )}
+              {candidate.gitHubUrl && (
+                <div>
+                  <p className="text-sm text-gray-500">GitHub</p>
+                  <a
+                    href={candidate.gitHubUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    {candidate.gitHubUrl}
+                  </a>
+                </div>
+              )}
               <div>
                 <p className="text-sm text-gray-500">Desired Role</p>
                 <p className="font-medium text-gray-900">{candidate.desiredRole || '-'}</p>
@@ -507,6 +554,80 @@ export default function AdminCandidateDetailPage() {
               </div>
             </div>
           </Card>
+
+          {/* Public Work Summary Section */}
+          {candidate.gitHubUrl && (
+            <Card>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Public work summary <span className="font-normal text-sm text-gray-500">(based on project documentation)</span></h2>
+                <Button
+                  onClick={handleGenerateGitHubSummary}
+                  disabled={isGeneratingSummary}
+                  variant="outline"
+                  size="sm"
+                  title="Creates a short summary based on public project descriptions"
+                >
+                  {isGeneratingSummary
+                    ? 'Generating...'
+                    : candidate.gitHubSummary
+                    ? 'Regenerate'
+                    : 'Generate'}
+                </Button>
+              </div>
+
+              {candidate.gitHubSummary ? (
+                <div className="text-sm text-gray-700 bg-gray-50 rounded-lg p-4">
+                  {(() => {
+                    const lines = candidate.gitHubSummary.split('\n').filter(line => line.trim());
+                    const intro: string[] = [];
+                    const bullets: string[] = [];
+                    const closing: string[] = [];
+                    let section: 'intro' | 'bullets' | 'closing' = 'intro';
+
+                    for (const line of lines) {
+                      if (line.trim().startsWith('- ')) {
+                        section = 'bullets';
+                        bullets.push(line.trim().slice(2));
+                      } else if (section === 'bullets') {
+                        section = 'closing';
+                        closing.push(line.trim());
+                      } else if (section === 'intro') {
+                        intro.push(line.trim());
+                      } else {
+                        closing.push(line.trim());
+                      }
+                    }
+
+                    return (
+                      <>
+                        {intro.length > 0 && (
+                          <p className="mb-3">{intro.join(' ')}</p>
+                        )}
+                        {bullets.length > 0 && (
+                          <ul className="list-disc list-outside ml-5 space-y-2 mb-3">
+                            {bullets.map((bullet, idx) => (
+                              <li key={idx}>{bullet}</li>
+                            ))}
+                          </ul>
+                        )}
+                        {closing.length > 0 && (
+                          <p>{closing.join(' ')}</p>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-gray-500">
+                  <svg className="w-10 h-10 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <p>No summary yet</p>
+                  <p className="text-sm mt-1">Click "Generate" to add profile context.</p>
+                </div>
+              )}
+            </Card>
+          )}
 
           {/* Skills Section */}
           <Card>

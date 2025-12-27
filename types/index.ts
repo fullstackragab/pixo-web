@@ -228,6 +228,9 @@ export interface CandidateProfile {
   firstName?: string;
   lastName?: string;
   linkedInUrl?: string;
+  gitHubUrl?: string;
+  gitHubSummary?: string;
+  gitHubSummaryGeneratedAt?: string;
   cvFileName?: string;
   cvDownloadUrl?: string;
   cvParseStatus?: 'pending' | 'success' | 'partial' | 'failed' | null;

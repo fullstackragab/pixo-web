@@ -37,6 +37,7 @@ interface ShortlistCandidate {
   topSkills?: string[];
   capabilities?: Capabilities;
   email?: string;
+  gitHubSummary?: string;
   // Interest response from candidate
   interestStatus?:
     | "pending"
@@ -44,6 +45,22 @@ interface ShortlistCandidate {
     | "not_interested"
     | "interested_later";
   interestRespondedAt?: string;
+}
+
+interface ShortlistCandidatePreview {
+  previewId: number;
+  role: string | null;
+  seniority: string | null;
+  topSkills: string[];
+  availability: string;
+  workSetup: string | null;
+  region: string | null;
+  whyThisCandidate: string;
+  rank: number;
+  seniorityLabel: string;
+  availabilityLabel: string;
+  workSetupLabel: string;
+  hasPublicWorkSummary?: boolean;
 }
 
 interface InterestCounts {
@@ -64,6 +81,9 @@ interface ShortlistDetail {
   status: string;
   createdAt: string;
   candidates: ShortlistCandidate[];
+  candidatePreviews?: ShortlistCandidatePreview[];
+  hasPreviews?: boolean;
+  profilesUnlocked?: boolean;
   interestCounts?: InterestCounts;
   maxCandidates?: number;
   proposedPrice?: number;
@@ -140,6 +160,10 @@ export default function CompanyShortlistDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isApproving, setIsApproving] = useState(false);
   const [activeTab, setActiveTab] = useState<CandidateTab>("interested");
+  const [showDeclineModal, setShowDeclineModal] = useState(false);
+  const [declineReason, setDeclineReason] = useState<string>("");
+  const [declineFeedback, setDeclineFeedback] = useState<string>("");
+  const [isDeclining, setIsDeclining] = useState(false);
 
   useEffect(() => {
     if (!authLoading && user && shortlistId) {
@@ -199,9 +223,7 @@ export default function CompanyShortlistDetailPage() {
   const handleApprove = async () => {
     setIsApproving(true);
     try {
-      const res = await api.post(`/shortlists/${shortlistId}/pricing/approve`, {
-        confirmApproval: true,
-      });
+      const res = await api.post(`/shortlists/${shortlistId}/approve`);
       if (res.success) {
         await loadShortlist();
       }
@@ -217,6 +239,24 @@ export default function CompanyShortlistDetailPage() {
 
   const handleNewRequest = () => {
     router.push("/company/shortlists/new");
+  };
+
+  const handleDecline = async () => {
+    if (!declineReason) return;
+
+    setIsDeclining(true);
+    try {
+      const res = await api.post(`/shortlists/${shortlistId}/decline`, {
+        reason: declineReason,
+        feedback: declineFeedback || undefined,
+      });
+      if (res.success) {
+        setShowDeclineModal(false);
+        router.push("/company/shortlists");
+      }
+    } finally {
+      setIsDeclining(false);
+    }
   };
 
   // Map backend status to UI state
@@ -294,8 +334,8 @@ export default function CompanyShortlistDetailPage() {
             <div>
               <h1 className="mb-3">Your shortlist is ready</h1>
               <p className="text-muted-foreground mb-8">
-                We've prepared {candidateCount} candidates who meet your
-                requirements. Review the pricing below to continue.
+                We've prepared a curated shortlist of candidates that meet your
+                requirements, prioritizing quality over volume.
               </p>
 
               <div className="border border-border rounded-lg p-8 bg-card space-y-6">
@@ -307,24 +347,154 @@ export default function CompanyShortlistDetailPage() {
                     <p className="text-3xl text-foreground">€{pricing}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-muted-foreground">
-                      {candidateCount} candidates
-                    </p>
+                    <div className="flex flex-wrap justify-end gap-2 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Hand-reviewed
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Availability verified
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        No spam
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-border">
+                <div className="pt-4 border-t border-border space-y-2">
                   <p className="text-sm text-muted-foreground">
                     Price is per shortlist delivery. You only pay if we deliver
                     candidates that meet our quality bar.
                   </p>
+                  <p className="text-sm text-muted-foreground">
+                    If this shortlist doesn't feel right, you can decline — no charge.
+                  </p>
                 </div>
               </div>
+
+              {/* Candidate Preview Section */}
+              {shortlist.hasPreviews && shortlist.candidatePreviews && shortlist.candidatePreviews.length > 0 && (
+                <div className="mt-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-medium">Preview of your shortlist</h3>
+                    <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                      Full profiles unlock after approval, including work summaries
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {shortlist.candidatePreviews
+                      .sort((a, b) => a.rank - b.rank)
+                      .map((preview) => (
+                        <div
+                          key={preview.previewId}
+                          className="border border-border rounded-lg p-5 bg-card relative overflow-hidden"
+                        >
+                          {/* Rank and locked indicator */}
+                          <div className="absolute top-3 right-3 flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">
+                              #{preview.rank}
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                              </svg>
+                              Preview
+                            </span>
+                          </div>
+
+                          <div className="space-y-3">
+                            {/* Role and seniority */}
+                            <div>
+                              <h4 className="font-medium">
+                                {preview.role || "Software Engineer"}
+                              </h4>
+                              <div className="flex items-center gap-2 mt-1">
+                                {preview.seniorityLabel && (
+                                  <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                                    {preview.seniorityLabel}
+                                  </span>
+                                )}
+                                <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">
+                                  {preview.availabilityLabel}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Key skills */}
+                            {preview.topSkills && preview.topSkills.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {preview.topSkills.map((skill, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded"
+                                  >
+                                    {skill}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Work setup and region */}
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              {preview.workSetupLabel && (
+                                <span>{preview.workSetupLabel}</span>
+                              )}
+                              {preview.region && (
+                                <>
+                                  <span className="text-muted-foreground/50">|</span>
+                                  <span>{preview.region}</span>
+                                </>
+                              )}
+                            </div>
+
+                            {/* Why this candidate */}
+                            {preview.whyThisCandidate && (
+                              <div className="pt-3 border-t border-border">
+                                <p className="text-sm text-muted-foreground italic">
+                                  "{preview.whyThisCandidate}"
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Public work reviewed indicator */}
+                            {preview.hasPublicWorkSummary && (
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-2">
+                                <svg className="w-3.5 h-3.5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                <span>Public work reviewed (projects & documentation)</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            <Button onClick={handleApprove} disabled={isApproving}>
-              {isApproving ? "Approving..." : "Approve to continue"}
-            </Button>
+            <div className="space-y-3 mt-8">
+              <Button onClick={handleApprove} disabled={isApproving}>
+                {isApproving ? "Loading..." : "Approve & unlock full profiles"}
+              </Button>
+              <div>
+                <button
+                  onClick={() => setShowDeclineModal(true)}
+                  className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline transition-colors"
+                >
+                  Not a fit? Decline shortlist
+                </button>
+              </div>
+            </div>
 
             {shortlist.lastEmailSentAt && (
               <div className="mt-8 p-6 bg-muted rounded-lg">
@@ -579,6 +749,56 @@ export default function CompanyShortlistDetailPage() {
                               />
                             </div>
 
+                            {/* Public work summary */}
+                            {candidate.gitHubSummary && (
+                              <div className="mb-4 p-4 bg-muted/50 rounded-lg">
+                                <p className="text-sm font-medium mb-2">
+                                  Public work summary <span className="font-normal text-muted-foreground">(based on project documentation)</span>
+                                </p>
+                                <div className="text-sm text-muted-foreground">
+                                  {(() => {
+                                    const lines = candidate.gitHubSummary.split('\n').filter(line => line.trim());
+                                    const intro: string[] = [];
+                                    const bullets: string[] = [];
+                                    const closing: string[] = [];
+                                    let section: 'intro' | 'bullets' | 'closing' = 'intro';
+
+                                    for (const line of lines) {
+                                      if (line.trim().startsWith('- ')) {
+                                        section = 'bullets';
+                                        bullets.push(line.trim().slice(2));
+                                      } else if (section === 'bullets') {
+                                        section = 'closing';
+                                        closing.push(line.trim());
+                                      } else if (section === 'intro') {
+                                        intro.push(line.trim());
+                                      } else {
+                                        closing.push(line.trim());
+                                      }
+                                    }
+
+                                    return (
+                                      <>
+                                        {intro.length > 0 && (
+                                          <p className="mb-3">{intro.join(' ')}</p>
+                                        )}
+                                        {bullets.length > 0 && (
+                                          <ul className="list-disc list-outside ml-5 space-y-2 mb-3">
+                                            {bullets.map((bullet, idx) => (
+                                              <li key={idx}>{bullet}</li>
+                                            ))}
+                                          </ul>
+                                        )}
+                                        {closing.length > 0 && (
+                                          <p>{closing.join(' ')}</p>
+                                        )}
+                                      </>
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+                            )}
+
                             {/* Recommendations Section */}
                             {candidateRecs.length > 0 && (
                               <div className="pt-4 border-t border-border mb-4">
@@ -692,6 +912,124 @@ export default function CompanyShortlistDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Decline Modal */}
+      {showDeclineModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowDeclineModal(false)}
+          />
+          <div className="relative bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4 shadow-lg">
+            <h3 className="text-lg font-semibold mb-4">Decline shortlist</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Help us improve by sharing why this shortlist isn't a fit. You
+              won't be charged.
+            </p>
+
+            <div className="space-y-3 mb-6">
+              <label className="flex items-start gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                <input
+                  type="radio"
+                  name="declineReason"
+                  value="pricing"
+                  checked={declineReason === "pricing"}
+                  onChange={(e) => setDeclineReason(e.target.value)}
+                  className="mt-0.5"
+                />
+                <div>
+                  <p className="text-sm font-medium">Pricing doesn't work</p>
+                  <p className="text-xs text-muted-foreground">
+                    The price is higher than expected for this shortlist
+                  </p>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                <input
+                  type="radio"
+                  name="declineReason"
+                  value="relevance"
+                  checked={declineReason === "relevance"}
+                  onChange={(e) => setDeclineReason(e.target.value)}
+                  className="mt-0.5"
+                />
+                <div>
+                  <p className="text-sm font-medium">Candidates not relevant</p>
+                  <p className="text-xs text-muted-foreground">
+                    Based on the preview, the candidates don't seem like a good match
+                  </p>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                <input
+                  type="radio"
+                  name="declineReason"
+                  value="timing"
+                  checked={declineReason === "timing"}
+                  onChange={(e) => setDeclineReason(e.target.value)}
+                  className="mt-0.5"
+                />
+                <div>
+                  <p className="text-sm font-medium">Timing changed</p>
+                  <p className="text-xs text-muted-foreground">
+                    Our hiring needs have changed since we submitted this request
+                  </p>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                <input
+                  type="radio"
+                  name="declineReason"
+                  value="other"
+                  checked={declineReason === "other"}
+                  onChange={(e) => setDeclineReason(e.target.value)}
+                  className="mt-0.5"
+                />
+                <div>
+                  <p className="text-sm font-medium">Other reason</p>
+                </div>
+              </label>
+            </div>
+
+            {(declineReason === "other" || declineReason) && (
+              <div className="mb-6">
+                <label className="block text-sm font-medium mb-2">
+                  Additional feedback (optional)
+                </label>
+                <textarea
+                  value={declineFeedback}
+                  onChange={(e) => setDeclineFeedback(e.target.value)}
+                  placeholder="Tell us more about your decision..."
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                  rows={3}
+                />
+              </div>
+            )}
+
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeclineModal(false);
+                  setDeclineReason("");
+                  setDeclineFeedback("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDecline}
+                disabled={!declineReason || isDeclining}
+              >
+                {isDeclining ? "Declining..." : "Decline shortlist"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -134,12 +134,15 @@ export default function CandidateProfileEditPage() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [linkedInUrl, setLinkedInUrl] = useState('');
+  const [gitHubUrl, setGithubUrl] = useState('');
   const [desiredRole, setDesiredRole] = useState('');
   const [locationPreference, setLocationPreference] = useState('');
   const [availability, setAvailability] = useState<Availability>(Availability.Open);
   const [seniority, setSeniority] = useState<SeniorityLevel | null>(null);
   const [cvFileName, setCvFileName] = useState<string | null>(null);
   const [newCvFile, setNewCvFile] = useState<File | null>(null);
+  const [gitHubSummary, setGitHubSummary] = useState('');
+  const [hasGitHubSummary, setHasGitHubSummary] = useState(false);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -151,11 +154,14 @@ export default function CandidateProfileEditPage() {
           setFirstName(profile.firstName || '');
           setLastName(profile.lastName || '');
           setLinkedInUrl(profile.linkedInUrl || '');
+          setGithubUrl(profile.gitHubUrl || '');
           setDesiredRole(profile.desiredRole || '');
           setLocationPreference(profile.locationPreference || '');
           setAvailability(profile.availability);
           setSeniority(normalizeSeniority(profile.seniorityEstimate));
           setCvFileName(profile.cvFileName || null);
+          setGitHubSummary(profile.gitHubSummary || '');
+          setHasGitHubSummary(!!profile.gitHubSummaryGeneratedAt);
         }
         setIsLoading(false);
       };
@@ -203,10 +209,12 @@ export default function CandidateProfileEditPage() {
       firstName: firstName.trim() || null,
       lastName: lastName.trim() || null,
       linkedInUrl: linkedInUrl.trim() || null,
+      gitHubUrl: gitHubUrl.trim() || null,
       desiredRole: desiredRole.trim() || null,
       locationPreference: locationPreference.trim() || null,
       availability,
       seniorityEstimate: seniority,
+      gitHubSummary: hasGitHubSummary ? gitHubSummary.trim() || null : undefined,
     });
 
     if (res.success) {
@@ -295,10 +303,43 @@ export default function CandidateProfileEditPage() {
                 onChange={(e) => setLinkedInUrl(e.target.value)}
                 placeholder="https://linkedin.com/in/yourprofile"
               />
+            </div>
+
+            <div className="mt-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Label htmlFor="github">GitHub Profile</Label>
+                <span className="text-xs text-muted-foreground">(optional)</span>
+              </div>
+              <Input
+                id="github"
+                type="url"
+                value={gitHubUrl}
+                onChange={(e) => setGithubUrl(e.target.value)}
+                placeholder="https://github.com/yourusername"
+              />
               <p className="text-xs text-muted-foreground mt-1">
-                Used for context only. We do not scrape LinkedIn.
+                Public repositories can help highlight hands-on experience for technical roles.
               </p>
             </div>
+
+            {/* Public work summary - only show if one has been generated */}
+            {hasGitHubSummary && (
+              <div className="mt-4 pt-4 border-t border-border">
+                <div className="flex items-center gap-2 mb-1">
+                  <Label htmlFor="gitHubSummary">Public work summary <span className="font-normal text-muted-foreground">(based on project documentation)</span></Label>
+                </div>
+                <Textarea
+                  id="gitHubSummary"
+                  value={gitHubSummary}
+                  onChange={(e) => setGitHubSummary(e.target.value)}
+                  placeholder="Summary of your public work..."
+                  rows={6}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  This summary is based on publicly available project descriptions. You can edit it.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* CV Upload */}
