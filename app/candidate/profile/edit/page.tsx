@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
-import { CandidateProfile, Availability } from '@/types';
+import { CandidateProfile, Availability, SeniorityLevel } from '@/types';
 
 function Label({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
   return (
@@ -102,6 +102,23 @@ function Button({
   );
 }
 
+// Normalize seniority value from API (can be number, string, or null)
+const normalizeSeniority = (value: SeniorityLevel | number | string | null | undefined): SeniorityLevel | null => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number') return value as SeniorityLevel;
+  if (typeof value === 'string') {
+    const map: Record<string, SeniorityLevel> = {
+      junior: SeniorityLevel.Junior,
+      mid: SeniorityLevel.Mid,
+      senior: SeniorityLevel.Senior,
+      lead: SeniorityLevel.Lead,
+      principal: SeniorityLevel.Principal,
+    };
+    return map[value.toLowerCase()] ?? null;
+  }
+  return null;
+};
+
 export default function CandidateProfileEditPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
@@ -120,30 +137,31 @@ export default function CandidateProfileEditPage() {
   const [desiredRole, setDesiredRole] = useState('');
   const [locationPreference, setLocationPreference] = useState('');
   const [availability, setAvailability] = useState<Availability>(Availability.Open);
+  const [seniority, setSeniority] = useState<SeniorityLevel | null>(null);
   const [cvFileName, setCvFileName] = useState<string | null>(null);
   const [newCvFile, setNewCvFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (!authLoading && user) {
+      const loadProfile = async () => {
+        setIsLoading(true);
+        const res = await api.get<CandidateProfile>('/candidates/profile');
+        if (res.success && res.data) {
+          const profile = res.data;
+          setFirstName(profile.firstName || '');
+          setLastName(profile.lastName || '');
+          setLinkedInUrl(profile.linkedInUrl || '');
+          setDesiredRole(profile.desiredRole || '');
+          setLocationPreference(profile.locationPreference || '');
+          setAvailability(profile.availability);
+          setSeniority(normalizeSeniority(profile.seniorityEstimate));
+          setCvFileName(profile.cvFileName || null);
+        }
+        setIsLoading(false);
+      };
       loadProfile();
     }
   }, [authLoading, user]);
-
-  const loadProfile = async () => {
-    setIsLoading(true);
-    const res = await api.get<CandidateProfile>('/candidates/profile');
-    if (res.success && res.data) {
-      const profile = res.data;
-      setFirstName(profile.firstName || '');
-      setLastName(profile.lastName || '');
-      setLinkedInUrl(profile.linkedInUrl || '');
-      setDesiredRole(profile.desiredRole || '');
-      setLocationPreference(profile.locationPreference || '');
-      setAvailability(profile.availability);
-      setCvFileName(profile.cvFileName || null);
-    }
-    setIsLoading(false);
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -188,6 +206,7 @@ export default function CandidateProfileEditPage() {
       desiredRole: desiredRole.trim() || null,
       locationPreference: locationPreference.trim() || null,
       availability,
+      seniorityEstimate: seniority,
     });
 
     if (res.success) {
@@ -265,7 +284,10 @@ export default function CandidateProfileEditPage() {
             </div>
 
             <div className="mt-4">
-              <Label htmlFor="linkedIn">LinkedIn Profile</Label>
+              <div className="flex items-center gap-2 mb-1">
+                <Label htmlFor="linkedIn">LinkedIn Profile</Label>
+                <span className="text-xs text-muted-foreground">(optional)</span>
+              </div>
               <Input
                 id="linkedIn"
                 type="url"
@@ -273,6 +295,9 @@ export default function CandidateProfileEditPage() {
                 onChange={(e) => setLinkedInUrl(e.target.value)}
                 placeholder="https://linkedin.com/in/yourprofile"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Used for context only. We do not scrape LinkedIn.
+              </p>
             </div>
           </div>
 
@@ -288,19 +313,39 @@ export default function CandidateProfileEditPage() {
               It&apos;s reviewed by our team before your profile becomes visible.
             </p>
 
-            {cvFileName && (
-              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span className="text-sm text-foreground">{cvFileName}</span>
+            {cvFileName ? (
+              <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm text-foreground font-medium">{cvFileName}</span>
+                  </div>
+                  <span className="text-xs text-green-600 font-medium">Current CV</span>
                 </div>
-                <span className="text-xs text-green-600 font-medium">Uploaded</span>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-sm"
+                  >
+                    Replace CV
+                  </Button>
+                  <button
+                    onClick={() => {
+                      if (confirm('Are you sure you want to remove your CV? Your profile will no longer be visible to companies.')) {
+                        setCvFileName(null);
+                        api.delete('/candidates/cv');
+                      }
+                    }}
+                    className="text-sm text-red-600 hover:text-red-700 px-3 py-1"
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
-            )}
-
-            {!cvFileName && (
+            ) : (
               <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-sm text-yellow-800">
                   No CV uploaded. Your profile won&apos;t be visible to companies until you upload a CV.
@@ -308,59 +353,67 @@ export default function CandidateProfileEditPage() {
               </div>
             )}
 
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
-                newCvFile
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border bg-muted/30 hover:bg-muted/50'
-              }`}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.doc,.docx"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              {newCvFile ? (
-                <div className="flex items-center justify-center gap-3">
-                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span className="text-sm text-foreground font-medium">{newCvFile.name}</span>
-                </div>
-              ) : (
-                <>
-                  <svg
-                    className="w-8 h-8 mx-auto mb-2 text-muted-foreground"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                    />
-                  </svg>
-                  <p className="text-sm text-foreground mb-1">
-                    {cvFileName ? 'Upload a new CV' : 'Click to upload your CV'}
-                  </p>
-                  <p className="text-xs text-muted-foreground">PDF, DOC, or DOCX</p>
-                </>
-              )}
-            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+
+            {!cvFileName && (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
+                  newCvFile
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border bg-muted/30 hover:bg-muted/50'
+                }`}
+              >
+                {newCvFile ? (
+                  <div className="flex items-center justify-center gap-3">
+                    <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm text-foreground font-medium">{newCvFile.name}</span>
+                  </div>
+                ) : (
+                  <>
+                    <svg
+                      className="w-8 h-8 mx-auto mb-2 text-muted-foreground"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                      />
+                    </svg>
+                    <p className="text-sm text-foreground mb-1">Click to upload your CV</p>
+                    <p className="text-xs text-muted-foreground">PDF, DOC, or DOCX</p>
+                  </>
+                )}
+              </div>
+            )}
 
             {newCvFile && (
-              <Button
-                onClick={handleUploadCv}
-                disabled={isUploading}
-                className="mt-4"
-              >
-                {isUploading ? 'Uploading...' : 'Upload CV'}
-              </Button>
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span className="text-sm text-foreground">{newCvFile.name}</span>
+                </div>
+                <Button
+                  onClick={handleUploadCv}
+                  disabled={isUploading}
+                >
+                  {isUploading ? 'Uploading...' : 'Upload'}
+                </Button>
+              </div>
             )}
           </div>
 
@@ -403,17 +456,42 @@ export default function CandidateProfileEditPage() {
                   <option value={Availability.NotNow}>Not Looking Right Now</option>
                 </select>
               </div>
+
+              <div>
+                <Label htmlFor="seniority">Seniority Level</Label>
+                <select
+                  id="seniority"
+                  value={seniority ?? ''}
+                  onChange={(e) => setSeniority(e.target.value === '' ? null : Number(e.target.value) as SeniorityLevel)}
+                  className="w-full px-3 py-2 bg-input-background border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">Select level...</option>
+                  <option value={SeniorityLevel.Junior}>Junior</option>
+                  <option value={SeniorityLevel.Mid}>Mid-level</option>
+                  <option value={SeniorityLevel.Senior}>Senior</option>
+                  <option value={SeniorityLevel.Lead}>Lead / Staff</option>
+                  <option value={SeniorityLevel.Principal}>Principal</option>
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Used for matching only. Not shown publicly.
+                </p>
+              </div>
             </div>
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={handleCancel}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </Button>
+          <div className="space-y-3">
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={handleCancel}>
+                Cancel
+              </Button>
+              <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Changes may take up to 24 hours to reflect after review.
+            </p>
           </div>
         </div>
       </div>

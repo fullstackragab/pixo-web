@@ -182,11 +182,6 @@ export default function RequestRecommendationModal({
                 </select>
               </div>
 
-              {/* Count indicator */}
-              <p className="text-sm text-gray-500">
-                {currentCount}/3 recommendations used
-              </p>
-
               {/* Error message */}
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3">

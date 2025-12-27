@@ -9,7 +9,8 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import api from "@/lib/api";
-import { CandidateProfile, Notification, Availability } from "@/types";
+import { deriveCapabilities } from "@/lib/capabilities";
+import { CandidateProfile, Notification, Availability, Capabilities } from "@/types";
 
 export default function CandidateDashboard() {
   const { user, isLoading: authLoading } = useAuth();
@@ -41,39 +42,15 @@ export default function CandidateDashboard() {
   };
 
   // Calculate profile completion percentage
-  // Only includes candidate-controlled items (never system-controlled like recommendations)
-  const calculateCompletion = (p: CandidateProfile | null): number => {
-    if (!p) return 0;
-    let score = 0;
-    if (p.firstName && p.lastName) score += 20;
-    if (p.cvFileName) score += 30;
-    if (p.desiredRole) score += 20;
-    if (p.skills && p.skills.length >= 3) score += 20;
-    if (p.locationPreference || p.location) score += 10;
-    // Note: profileVisible is optional, not required for 100%
-    return Math.min(score, 100);
-  };
-
-  const completionPercent = calculateCompletion(profile);
-
-  const getCompletionLabel = (percent: number): string => {
-    if (percent < 40) return "Getting started";
-    if (percent < 70) return "Making progress";
-    if (percent < 100) return "Almost complete";
-    return "Complete";
-  };
-
   // Get what's missing for profile completion
-  // Only includes candidate-controlled items
+  // Only includes candidate-controlled items - skills are derived from CV, not added manually
   const getMissingItems = (p: CandidateProfile | null): string[] => {
     if (!p) return [];
     const missing: string[] = [];
     if (!p.firstName || !p.lastName) missing.push("Add your name");
     if (!p.cvFileName) missing.push("Upload CV");
     if (!p.desiredRole) missing.push("Set desired role");
-    if (!p.skills || p.skills.length < 3) missing.push("Add 3+ skills");
     if (!p.locationPreference && !p.location) missing.push("Set location");
-    // Note: recommendations are system-controlled, never in missing items
     return missing;
   };
 
@@ -83,8 +60,6 @@ export default function CandidateDashboard() {
   const getNextActionHint = (p: CandidateProfile | null): string => {
     if (!p) return "Complete your profile to get discovered";
     if (!p.cvFileName) return "Upload your CV to get discovered by companies";
-    if (!p.skills || p.skills.length < 3)
-      return "Add more skills to improve your match rate";
     if (!p.profileVisible)
       return "Make your profile visible to start receiving interest";
     return "Your profile is active and visible to companies";
@@ -170,62 +145,67 @@ export default function CandidateDashboard() {
 
         {/* Profile Strength + Stats Row */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {/* Profile Completion */}
-          <Card className="md:col-span-1">
-            <div className="flex items-center gap-4">
-              <div className="relative shrink-0">
-                <svg
-                  className="w-16 h-16 transform -rotate-90"
-                  viewBox="0 0 64 64"
-                >
-                  <circle
-                    cx="32"
-                    cy="32"
-                    r="28"
-                    stroke="#E5E7EB"
-                    strokeWidth="4"
-                    fill="none"
-                  />
-                  <circle
-                    cx="32"
-                    cy="32"
-                    r="28"
-                    stroke={
-                      completionPercent >= 70
-                        ? "#10B981"
-                        : completionPercent >= 40
-                        ? "#3B82F6"
-                        : "#F59E0B"
-                    }
-                    strokeWidth="4"
-                    fill="none"
-                    strokeDasharray={`${completionPercent * 1.76} 176`}
-                    strokeLinecap="round"
-                    className="transition-all duration-500"
-                  />
-                </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-gray-900">
-                  {completionPercent}%
-                </span>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Profile</p>
-                <p className="font-semibold text-gray-900">
-                  {getCompletionLabel(completionPercent)}
-                </p>
-                {missingItems.length > 0 && completionPercent < 100 && (
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {missingItems[0]}
-                  </p>
-                )}
-              </div>
-            </div>
-          </Card>
+          {/* Profile Status */}
+          {(() => {
+            const getStatus = () => {
+              if (!profile?.cvFileName) return { label: 'CV Required', color: 'yellow', icon: 'warning' };
+              if (profile.profileStatus === 'approved') {
+                if (profile.profileVisible) return { label: 'Approved & Visible', color: 'green', icon: 'check' };
+                return { label: 'Paused', color: 'gray', icon: 'pause' };
+              }
+              return { label: 'Under Review', color: 'blue', icon: 'clock' };
+            };
+            const status = getStatus();
+            const colorClasses = {
+              green: 'bg-green-100 text-green-600',
+              blue: 'bg-blue-100 text-blue-600',
+              yellow: 'bg-yellow-100 text-yellow-600',
+              gray: 'bg-gray-100 text-gray-600',
+            };
 
-          {/* Profile Views */}
-          <Card className="group hover:border-blue-200 transition-colors">
-            <div className="flex items-center">
-              <div className="shrink-0 p-3 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
+            return (
+              <Card className="md:col-span-1">
+                <div className="flex items-center gap-4">
+                  <div className={`shrink-0 p-3 rounded-lg ${colorClasses[status.color as keyof typeof colorClasses]}`}>
+                    {status.icon === 'check' && (
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )}
+                    {status.icon === 'clock' && (
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )}
+                    {status.icon === 'warning' && (
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    )}
+                    {status.icon === 'pause' && (
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Profile status</p>
+                    <p className="font-semibold text-gray-900">{status.label}</p>
+                    {missingItems.length > 0 && (
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {missingItems[0]}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            );
+          })()}
+
+          {/* Profile Activity */}
+          <Card className="h-full">
+            <div className="flex items-center mb-3">
+              <div className="shrink-0 p-3 bg-blue-100 rounded-lg">
                 <svg
                   className="w-6 h-6 text-blue-600"
                   fill="none"
@@ -248,21 +228,31 @@ export default function CandidateDashboard() {
               </div>
               <div className="ml-4">
                 <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">
-                  Profile Views
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {profile?.profileViewsCount || 0}
+                  Profile activity
                 </p>
               </div>
             </div>
+            {(profile?.profileViewsCount || 0) > 0 ? (
+              <p className="text-sm text-gray-600">
+                A company reviewed your profile recently
+              </p>
+            ) : (
+              <p className="text-sm text-gray-400">
+                No recent activity
+              </p>
+            )}
           </Card>
 
-          {/* Skills */}
-          <Link href="/candidate/profile" className="block">
-            <Card className="h-full group hover:border-green-200 transition-colors cursor-pointer">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="shrink-0 p-3 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
+          {/* Expertise Areas */}
+          {(() => {
+            const capabilities: Capabilities = profile?.capabilities ||
+              (profile?.skills ? deriveCapabilities(profile.skills) : {});
+            const areas = Object.keys(capabilities).slice(0, 4);
+
+            return (
+              <Card className="h-full">
+                <div className="flex items-center mb-3">
+                  <div className="shrink-0 p-3 bg-green-100 rounded-lg">
                     <svg
                       className="w-6 h-6 text-green-600"
                       fill="none"
@@ -279,15 +269,35 @@ export default function CandidateDashboard() {
                   </div>
                   <div className="ml-4">
                     <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">
-                      Skills
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {profile?.skills?.length || 0}
+                      Expertise areas
                     </p>
                   </div>
                 </div>
+                {areas.length > 0 ? (
+                  <div className="space-y-1">
+                    {areas.map((area) => (
+                      <p key={area} className="text-sm text-gray-700">{area}</p>
+                    ))}
+                    <Link
+                      href="/candidate/profile"
+                      className="text-xs text-primary hover:underline mt-2 inline-block"
+                    >
+                      View full breakdown
+                    </Link>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400">Derived from your CV</p>
+                )}
+              </Card>
+            );
+          })()}
+
+          {/* Private Recommendations */}
+          <Card className="h-full">
+            <div className="flex items-center mb-3">
+              <div className="shrink-0 p-3 bg-purple-100 rounded-lg">
                 <svg
-                  className="w-5 h-5 text-gray-300 group-hover:text-green-500 transition-colors"
+                  className="w-6 h-6 text-purple-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -296,46 +306,31 @@ export default function CandidateDashboard() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M9 5l7 7-7 7"
+                    d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
                   />
                 </svg>
               </div>
-            </Card>
-          </Link>
-
-          {/* Recommendations - informational only, added by system */}
-          <Card className="group hover:border-purple-200 transition-colors">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="shrink-0 p-3 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
-                  <svg
-                    className="w-6 h-6 text-purple-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
-                    />
-                  </svg>
-                </div>
-                <div className="ml-4">
-                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">
-                    Recommendations
-                  </p>
-                  {(profile?.recommendationsCount || 0) > 0 ? (
-                    <p className="text-2xl font-bold text-gray-900">
-                      {profile?.recommendationsCount}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-gray-400">Added automatically</p>
-                  )}
-                </div>
+              <div className="ml-4">
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                  Private recommendations
+                </p>
               </div>
             </div>
+            <p className="text-sm text-gray-500 mb-3">
+              Shared only with companies you are introduced to.
+            </p>
+            {(profile?.recommendationsCount || 0) > 0 ? (
+              <p className="text-sm text-gray-700">
+                {profile?.recommendationsCount} recommendation{(profile?.recommendationsCount || 0) !== 1 ? 's' : ''}
+              </p>
+            ) : (
+              <Link
+                href="/candidate/profile"
+                className="text-xs text-primary hover:underline"
+              >
+                Request recommendation
+              </Link>
+            )}
           </Card>
         </div>
 
@@ -404,25 +399,27 @@ export default function CandidateDashboard() {
                 </div>
               )}
 
-              {profile?.skills && profile.skills.length > 0 && (
-                <div>
-                  <span className="text-gray-500 block text-xs uppercase tracking-wide mb-2">
-                    Top Skills
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {profile.skills.slice(0, 5).map((skill) => (
-                      <Badge key={skill.id} variant="primary">
-                        {skill.skillName}
-                      </Badge>
-                    ))}
-                    {profile.skills.length > 5 && (
-                      <Badge variant="default">
-                        +{profile.skills.length - 5} more
-                      </Badge>
-                    )}
+              {(() => {
+                const caps: Capabilities = profile?.capabilities ||
+                  (profile?.skills ? deriveCapabilities(profile.skills) : {});
+                const expertiseAreas = Object.keys(caps);
+                if (expertiseAreas.length === 0) return null;
+
+                return (
+                  <div>
+                    <span className="text-gray-500 block text-xs uppercase tracking-wide mb-2">
+                      Expertise areas
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {expertiseAreas.slice(0, 4).map((area) => (
+                        <Badge key={area} variant="primary">
+                          {area}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {!profile?.cvFileName && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">

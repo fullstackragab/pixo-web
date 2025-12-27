@@ -7,16 +7,40 @@ import RequestRecommendationModal from '@/components/RequestRecommendationModal'
 import CapabilitiesDisplay from '@/components/CapabilitiesDisplay';
 import api from '@/lib/api';
 import { deriveCapabilities } from '@/lib/capabilities';
-import { CandidateProfile, CandidateRecommendation, Capabilities } from '@/types';
+import { CandidateProfile, CandidateRecommendation, Capabilities, SeniorityLevel } from '@/types';
+
+// Normalize seniority value from API (can be number, string, or null)
+const normalizeSeniority = (value: SeniorityLevel | number | string | null | undefined): number | null => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const map: Record<string, number> = {
+      junior: 0,
+      mid: 1,
+      senior: 2,
+      lead: 3,
+      principal: 4,
+    };
+    return map[value.toLowerCase()] ?? null;
+  }
+  return null;
+};
 
 type ProfileStatus = 'no_cv' | 'under_review' | 'approved' | 'paused';
 
 function getProfileStatus(profile: CandidateProfile | null): ProfileStatus {
   if (!profile) return 'no_cv';
   if (!profile.cvFileName) return 'no_cv';
-  if (!profile.profileVisible) return 'paused';
-  // If profile is visible and has CV, check if approved (we infer from profileVisible being true)
-  return 'approved';
+
+  // Check backend profileStatus
+  if (profile.profileStatus === 'approved') {
+    // Approved but hidden = paused
+    if (!profile.profileVisible) return 'paused';
+    return 'approved';
+  }
+
+  // pending_review or null/undefined with CV = under review
+  return 'under_review';
 }
 
 function Badge({
@@ -111,7 +135,15 @@ function Switch({
   );
 }
 
-function ProfileStatusCard({ status, onEdit }: { status: ProfileStatus; onEdit: () => void }) {
+function ProfileStatusCard({
+  status,
+  onEdit,
+  cvParseStatus,
+}: {
+  status: ProfileStatus;
+  onEdit: () => void;
+  cvParseStatus?: 'pending' | 'success' | 'partial' | 'failed' | null;
+}) {
   const statusConfig = {
     no_cv: {
       title: 'CV Required',
@@ -157,6 +189,9 @@ function ProfileStatusCard({ status, onEdit }: { status: ProfileStatus; onEdit: 
 
   const config = statusConfig[status];
 
+  // Calm messaging for CV parse issues (only show when under review)
+  const showParseNote = status === 'under_review' && (cvParseStatus === 'failed' || cvParseStatus === 'partial');
+
   return (
     <div className="border border-border rounded-lg p-6 bg-card">
       <div className="flex items-start justify-between">
@@ -168,6 +203,11 @@ function ProfileStatusCard({ status, onEdit }: { status: ProfileStatus; onEdit: 
               {config.badge}
             </div>
             <p className="text-sm text-muted-foreground">{config.description}</p>
+            {showParseNote && (
+              <p className="text-xs text-muted-foreground mt-2">
+                We couldn&apos;t automatically extract all details from your CV. No problem — our team will review it manually.
+              </p>
+            )}
           </div>
         </div>
         {status === 'no_cv' && (
@@ -298,7 +338,11 @@ export default function CandidateProfilePage() {
 
           {/* Profile Status Card */}
           <div className="mb-6">
-            <ProfileStatusCard status={profileStatus} onEdit={handleEdit} />
+            <ProfileStatusCard
+              status={profileStatus}
+              onEdit={handleEdit}
+              cvParseStatus={profile?.cvParseStatus}
+            />
           </div>
 
           {/* Visibility Toggle - only show if profile has CV */}
@@ -348,16 +392,28 @@ export default function CandidateProfilePage() {
                 </div>
               )}
 
-              {seniority !== undefined && seniority !== null && (
-                <div>
-                  <p className="text-sm font-medium mb-2">Seniority</p>
-                  <p className="text-sm text-muted-foreground">
-                    {typeof seniority === 'number'
-                      ? ['Junior', 'Mid-level', 'Senior', 'Lead', 'Principal'][seniority] || 'Senior'
-                      : seniority}
-                  </p>
-                </div>
-              )}
+              {(() => {
+                const level = normalizeSeniority(seniority);
+                if (level === null) return null;
+
+                const seniorityConfig: Record<number, { title: string; description: string }> = {
+                  0: { title: 'Junior Engineer', description: 'Early career, learning fundamentals and growing technical skills.' },
+                  1: { title: 'Mid-level Engineer', description: 'Independent contributor with solid technical foundations.' },
+                  2: { title: 'Senior Engineer', description: 'Experienced professional who drives technical decisions and mentors others.' },
+                  3: { title: 'Lead Engineer', description: 'Technical leader who guides teams and shapes architecture.' },
+                  4: { title: 'Principal Engineer', description: 'Senior technical leader, drives architecture and complex systems.' },
+                };
+                const config = seniorityConfig[level];
+                if (!config) return null;
+
+                return (
+                  <div>
+                    <p className="text-sm font-medium mb-2">Seniority</p>
+                    <p className="text-sm text-foreground">{config.title}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{config.description}</p>
+                  </div>
+                );
+              })()}
 
               {rolePreferences && (
                 <div>
@@ -452,19 +508,25 @@ export default function CandidateProfilePage() {
                 ))
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  No recommendations yet. Request one from your professional network.
+                  Recommendations are optional. If you&apos;d like, ask someone from your professional network.
                 </p>
               )}
 
               {/* Request button */}
-              <Button
-                variant="outline"
-                className="w-full border-dashed"
-                onClick={() => setShowRequestModal(true)}
-                disabled={recommendations.length >= 3}
-              >
-                {recommendations.length >= 3 ? 'Maximum 3 recommendations reached' : 'Request recommendation'}
-              </Button>
+              {recommendations.length < 3 && (
+                <Button
+                  variant="outline"
+                  className="w-full border-dashed"
+                  onClick={() => setShowRequestModal(true)}
+                >
+                  Request recommendation
+                </Button>
+              )}
+              {recommendations.length > 0 && recommendations.length < 3 && (
+                <p className="text-xs text-muted-foreground text-center">
+                  Up to 3 private recommendations
+                </p>
+              )}
             </div>
           </div>
 

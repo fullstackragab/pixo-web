@@ -227,6 +227,8 @@ export interface CandidateProfile {
   linkedInUrl?: string;
   cvFileName?: string;
   cvDownloadUrl?: string;
+  cvParseStatus?: 'pending' | 'success' | 'partial' | 'failed' | null;
+  cvParseError?: string | null;
   desiredRole?: string;
   locationPreference?: string;
   location?: Location;
@@ -235,6 +237,7 @@ export interface CandidateProfile {
   availability: Availability;
   openToOpportunities: boolean;
   profileVisible: boolean;
+  profileStatus?: 'pending_review' | 'approved' | 'rejected' | null;
   seniorityEstimate?: SeniorityLevel;
   skills: CandidateSkill[];
   groupedSkills?: GroupedSkills;
